@@ -1,13 +1,39 @@
+// src/app/games/island_survival/page.tsx
 // FULL CONVERSION: Island Survival Game (Single-File Version)
 // This replicates the full Dart logic using React (in one file)
 
 'use client'
 
-import { useState, useEffect, createContext, useContext } from 'react'
+import { useState, createContext, useContext } from 'react'
 import { motion } from 'framer-motion'
 
+// --- Types ---
+interface GameState {
+  seenEvents: string[]
+  health: number
+  stress: number
+  hunger: number
+  thirst: number
+  warmth: number
+  energy: number
+  food: number
+  water: number
+  rawFood: number
+  rawWater: number
+  wood: number
+  hasShelter: boolean
+  fireLit: boolean
+  log: string[]
+  popup: { title: string; message: string } | null
+  gameOver: boolean
+  gameOverReason: string
+  actionsTaken: number
+  performAction: (type: string) => void
+  closePopup: () => void
+}
+
 // --- Game State & Context Setup ---
-const defaultState = {
+const defaultState: GameState = {
   seenEvents: [],
   health: 60,
   stress: 70,
@@ -27,30 +53,31 @@ const defaultState = {
   gameOver: false,
   gameOverReason: '',
   actionsTaken: 0,
-  performAction: (type) => {},
+  performAction: (type: string) => {},
   closePopup: () => {},
 }
 
-const GameContext = createContext(defaultState)
-export function useGame() {
+const GameContext = createContext<GameState>(defaultState)
+
+function useGame() {
   return useContext(GameContext)
 }
 
-function getClamped(val, delta) {
+function getClamped(val: number, delta: number): number {
   return Math.max(0, Math.min(100, val + delta))
 }
 
-export function GameProvider({ children }) {
-  const [state, setState] = useState(defaultState)
+function GameProvider({ children }: { children: React.ReactNode }) {
+  const [state, setState] = useState<GameState>(defaultState)
 
-  const logEvent = (text) => {
+  const logEvent = (text: string) => {
     setState((s) => ({ ...s, log: [...s.log.slice(-4), text] }))
   }
 
-  const performAction = (type) => {
+  const performAction = (type: string) => {
     if (state.gameOver) return
 
-    let updates = {}
+    let updates: Partial<GameState> = {}
     let message = ''
 
     switch (type) {
@@ -278,26 +305,28 @@ export function GameProvider({ children }) {
 
 function StatsPanel() {
   const { health, stress, hunger, thirst, warmth, energy, food, water, rawFood, rawWater, wood } = useGame()
-  const iconMap = {
-  'Health': '❤️',
-  'Stress': '😰',
-  'Hunger': '🍖',
-  'Thirst': '💧',
-  'Warmth': '🔥',
-  'Energy': '⚡',
-  'Food': '🥫',
-  'Water': '🚰',
-  'Raw Food': '🦀',
-  'Raw Water': '🥄',
-  'Wood': '🪵'
-};
+  
+  const iconMap: Record<string, string> = {
+    'Health': '❤️',
+    'Stress': '😰',
+    'Hunger': '🍖',
+    'Thirst': '💧',
+    'Warmth': '🔥',
+    'Energy': '⚡',
+    'Food': '🥫',
+    'Water': '🚰',
+    'Raw Food': '🦀',
+    'Raw Water': '🥄',
+    'Wood': '🪵'
+  }
 
-const Stat = ({ label, value }) => (
-  <div className="flex justify-between text-sm">
-    <span>{iconMap[label]} {label}</span>
-    <span>{value}</span>
-  </div>
-)
+  const Stat = ({ label, value }: { label: string; value: number }) => (
+    <div className="flex justify-between text-sm">
+      <span>{iconMap[label]} {label}</span>
+      <span>{value}</span>
+    </div>
+  )
+
   return (
     <div className="grid grid-cols-2 gap-3 mb-6 w-full max-w-md">
       <Stat label="Health" value={health} />
@@ -318,6 +347,7 @@ const Stat = ({ label, value }) => (
 function ActionPanel() {
   const { performAction, gameOver } = useGame()
   if (gameOver) return null
+  
   const actions = [
     { type: 'search_area', label: 'Search the Area' },
     { type: 'rest', label: 'Rest' },
@@ -333,10 +363,15 @@ function ActionPanel() {
     { type: 'mindfulness', label: 'Mindfulness' },
     { type: 'end_day', label: 'End Day' },
   ]
+  
   return (
     <div className="flex flex-wrap gap-3 mb-6 justify-center">
       {actions.map(({ type, label }) => (
-        <button key={type} onClick={() => performAction(type)} className="px-4 py-2 bg-green-700 rounded-lg shadow-md hover:bg-green-600 transition-all duration-200 text-white font-semibold">
+        <button 
+          key={type} 
+          onClick={() => performAction(type)} 
+          className="px-4 py-2 bg-green-700 rounded-lg shadow-md hover:bg-green-600 transition-all duration-200 text-white font-semibold"
+        >
           {label}
         </button>
       ))}
@@ -364,6 +399,7 @@ function StoryLog() {
 function PopupDialog() {
   const { popup, closePopup } = useGame()
   if (!popup) return null
+  
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -373,7 +409,12 @@ function PopupDialog() {
       <div className="bg-white text-black p-6 rounded-xl max-w-sm w-full">
         <h3 className="text-xl font-bold mb-2">{popup.title}</h3>
         <p className="mb-4">{popup.message}</p>
-        <button onClick={closePopup} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-500">OK</button>
+        <button 
+          onClick={closePopup} 
+          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-500"
+        >
+          OK
+        </button>
       </div>
     </motion.div>
   )
@@ -394,4 +435,3 @@ export default function Page() {
     </GameProvider>
   )
 }
-
