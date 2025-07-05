@@ -1,0 +1,430 @@
+
+
+
+
+
+
+
+
+
+
+
+Thomas Obee
+Hi Thomas. 
+Thanks for taking part in the trial to date: This weeks post Shangihia to see how Jet Las modifies cognitive performance
+
+Please take these tests when you get a chance ideally as early this week as you can..
+
+
+https://intervention.cognifit.com/professional/access?l=en&c=aw1MrV7imqcLfHrEVMAbIOuGkaf4Huqa84RbIZViCsyGFlIGfUWDyZ
+
+
+We may try to organize  a soom call
+
+Wearing your wathc is benefifical but we do not require this informaction so pleast take the above tests 
+
+
+At the end of this week we will no longer track your watch - 
+
+If you would like to return the watch - you can give it to Patrick Cooreny who will collect the watches and return them when you can. 
+
+
+The next stage - we will are analyzing the data from the team at Jaguar and other volunteers and compiling a variety of reports and papers so will 
+Theorugh this we will create a personalized report and will also share any published papers with you. 
+
+Thanks again!! 
+
+Please let me know if there are any questions or areas of intetest you may have in your cognitive profile etc.. 
+
+
+
+Thanks
+
+Alan 
+
+
+
+
+
+Survival Game 
+
+Level 1: 
+Island Survival 
+
+First Screen - Pop up intro Screen with the message
+
+Then a warning - You are Freezing - Get 
+
+
+
+
+UI
+Remove the weather icon and add effects instead turn the screen blue when cold
+
+
+
+
+
+
+Finish Level 1 - 
+As basis of all other levels 
+
+
+
+
+
+Finding 
+
+
+What is the behavior when a fire is burning - it should cool slower 
+
+Hunger and thirst warnings should reflect real values - in sleep 
+
+Timing system error 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Timing is accurate 
+
+Weather behavior - 
+
+Story elements
+
+Let's add weather behavior 
+
+Then get the numbers to reflect reality a bit more
+
+Stress - should go down slower than all others - in case of events that cause great stress. 
+
+For stress - all users should get one warning before death - to take an action to improve stress (Give them 3 hours) 
+
+For thirst - users should get one warning before death to take an action to improve stress ( give them 3 hours)
+
+For hunger - users should get one warning before death 
+
+All death messages should reflect the cause of death:
+
+Stress - You collapse into the sand in a state of shock
+
+Hunger - The hunger is just too much you can no longer function
+
+Thirst - Thirst is overwhelming - you can't think anymore
+
+
+
+Confirm behaviours - 
+
+Fire 
+
+Sleeping 
+
+
+
+
+
+
+
+How to increase health - when Energy is above 20, warmth is above 60 , hunger is above 30, thirst is above 30 and stress is above 25 then health will slowly increase - when it is not it slowly decreases. 
+
+In game elements will improve health 
+
+Searching the wreckage (Story point 1 ) 
+You see the ship (knowing the name of the ship helps you calm down - you remember you are a sailor) (Stress improves by 5 
+
+
+
+Improve Story 
+
+Remove - The search the wreckage option 
+
+
+
+Drink from the tide pool - story options
+
+Add Move option - takes one hour 
+Move - You walk 2 miles along the beach (On move - walk along the beach) 
+
+In the Area - 
+New options appear 
+ - Such as Tide Pool 
+ - Search the wreckage 
+ 
+
+Let's create some other options that appear after moving 
+ - You find a fishing net! 
+
+ - You see an deep hole in the sand - is there a crab inside? 
+
+
+
+
+Let's add some more elements to the areas 
+
+Lets' say 40% of the time when the player moves they don't find anything outside the normal optopns 
+Occassionaly a new option will come up - Such as 
+
+You find a tangled fishing net buried in the sand
+(+1 Net added to inventory. Useful for fishing or trapping)
+
+You see a deep hole in the sand — could there be a crab inside?
+(Choice: Reach in — Risk: bite/injury, Reward: food)
+Sometimes you get the crab for food - sometimes it bites you - and reduces health
+
+A tide pool glistens nearby, teeming with strange life
+(Option: Drink → risky, or investigate → potential small fish/shellfish)
+Sometimes you find fish for food - or water for drinking 
+
+
+A crate from the shipwreck has washed ashore
+(Choice: Open it — Risk: injury, Reward: supplies or tools)
+You find some medicine ! (+ 5 health points) 
+
+
+You spot footprints — yours, or someone (or something) else’s?
+Story element - Am I really alone here? 
+(Creates suspense — may lead to a future encounter)
+
+
+
+
+Landing Area - Options 
+
+
+You see wreckage in the distance:
+Search the wreckage
+
+There is a pool of dark looking water: 
+Drink from a tide pool 
+
+
+
+
+
+Move - 1 hour  (You move away from your base) so the fire is no longer available
+
+
+After 5th Move 
+
+Move to Level 1 - Area 2 
+Normal options + 
+You find a tangled fishing net buried in the sand
+(+1 Net added to inventory. Useful for fishing or trapping)
+
+You see a deep hole in the sand — could there be a crab inside?
+(Choice: Reach in — Risk: bite/injury, Reward: food)
+Sometimes you get the crab for food - sometimes it bites you - and reduces health
+
+
+
+Move to Level 1 - Area 3 
+A tide pool glistens nearby, teeming with strange life
+(Option: Drink → risky, or investigate → potential small fish/shellfish)
+Sometimes you find fish for food - or water for drinking 
+
+
+A crate from the shipwreck has washed ashore
+(Choice: Open it — Risk: injury, Reward: supplies or tools)
+You find some medicine ! (+ 5 health points) 
+
+
+Move to Level 1 - Area 4 
+You spot footprints — yours, or someone (or something) else’s?
+Story element - Am I really alone here? 
+(Creates suspense — may lead to a future encounter)
+
+
+Move to Level 1 - Area 5 
+You encounter a large cliff surrounding the inner island - if your health is above 80 you can climb it to see the rest of the island
+
+
+
+
+Finish Game! 
+
+
+Scoring System
+
+Chat bot tomorrow
+
+
+
+
+Add a section called '
+In the Area 
+and have 
+
+
+
+
+
+Walk to new areas within level
+New option shows up - risky or not 
+
+
+Fire 
+Need to be able to add fuel to fire 
+Is fire burning time correct - 3 hours left 
+1 hours - fire 
+
+Cooking food should take 1 hour - change time 
+Boil water - 15 minutes (time is different) 
+Make sure fire aligns with burning time
+
+
+
+
+
+
+
+
+
+
+10.30am 
+
+Find Food - 2 hours - is 4.5 hours (On clock) 
+Find Water - should take 1 hour but shows as 5.5
+Find wood - similar
+
+6am
++ 2hours - Forgage for wood - 8am)
+Build a fire - should take 30 minutes (takes 2.5) 10.30
+Search the wreckage - should tak 60 minutes - take 2.5 
+Look for wood - then takes 6 hours should take 2
+Drink from Tidepool 
+
+
+6am 
+forage for wood - 2 hours - 8am 
+start a fire - 30 mins - 8.30
+Find food - 2 hours - 10.30am 
+Find water - 1 hour - ok - 11.30am 
+Fnid wook - 2 hours - 1.30pm
+Rest - 1 hour - 30mins
+
+Timing system in working - now let's work on the inventory system -
+We want to the amount of firewood used to equal the length a fire will burin for 
+1 wood - equals 2 hours 
+2 wood - equals 4 hours
+3 = 6 - ask the user how much wood they want to use
+So for instance they can sleep through the night for 8 hours if they have enough wood
+
+Find 3 wood - each hour of fire requires 1 wood 
+
+
+
+What is ChronType
+
+How it affects your Grades / studies
+
+Some people are morning / some are late
+
+
+HOW PREP WORKS  as part of intro page
+
+WITH PREP WE CAN 1. Understand Your Chronotype
+
+Determine 
+
+Emphasise this point
+
+We use this information to improve your learning ability through guided lifestyle change. 
+
+
+
+Project for Ashvitha
+
+
+Theory - Research 
+Formula E - Learn about formula racing
+Understand - cognitive domains 
+Understand the theoretical relationship between cognitive domains and sleep 
+Understand the relationship between jet lag and cog domains 
+
+
+Initial Project 
+Use Race Schedules to determine when Formula Racers are in the Jet Lag phase of and determine the cognitive cost in practical terms
+
+Data Analysis 
+
+Data Files containing Activity data  
+
+I want you to understand what aspects of the users activity have most impact on their sleep - outside Jet Lag 
+
+USE AI! I only care about results! 
+To 
+Download Python and Numerical analysis package
+Get the Data Files 
+'Clean' the data - Try to understand what this means 
+Do a statistical analysis - of activity factors (stress, heart rate, Spo2) Vs sleep 
+What happens in the day Vs Sleep Staging, what happened in the week before vs average sleep staging ... 
+
+Questions like this
+Does time of day of stress, effect sleep and sleep staging 
+Does activity type or intensity effect sleep and sleep staging  
+
+
+
+an or 
+
+Experimental Design 
+Apply this in a practical sense to people your own page - specifically students from middle school to full time education 
+How does schedule effect their cognitive performance - what changes can we make to improve 
+How would we test this
+
+or
+Validate Cog tests against people your own age - 
+
+
+
+and marketing (non science) 
+How do you market an app - consumer app vs business to business 
+Look at how facebook initially mareted their products 
+Look at breal? and how they marketed their product 
+Target market is Indian and Asian Students 
+
+
+and or 
+Create a pitch deck for the company - 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

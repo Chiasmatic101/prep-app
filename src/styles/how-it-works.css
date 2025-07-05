@@ -1,0 +1,94 @@
+.how-it-works {
+  font-family: 'Arial Rounded MT', 'Helvetica Neue', sans-serif;
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+  color: #171717;
+  background: #fff;
+}
+
+.how-it-works h1 {
+  font-size: 2.5rem;
+  line-height: 2.75rem;
+  font-weight: bold;
+  color: #7e22ce;
+  text-align: center;
+  margin-top: 4rem;
+  margin-bottom: 2.5rem;
+}
+
+.how-section {
+  padding: 5rem 1.5rem;
+}
+
+.how-section:nth-child(even) .section-content {
+  flex-direction: row-reverse;
+}
+
+.section-content {
+  display: flex;
+  flex-direction: column;
+  gap: 3rem;
+  align-items: center;
+  max-width: 90rem;
+  margin: 0 auto;
+}
+
+@media (min-width: 768px) {
+  .section-content {
+    flex-direction: row;
+  }
+}
+
+.section-text h2 {
+  font-size: 1.75rem;
+  line-height: 2rem;
+  font-weight: bold;
+  color: #111827;
+  margin-bottom: 1rem;
+}
+
+.section-text p {
+  color: #4b5563;
+}
+
+.section-image {
+  width: 100%;
+  height: 20rem;
+  background: white;
+  border-radius: 2rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cta-section {
+  padding: 5rem 1.5rem;
+  background: white;
+  text-align: center;
+}
+
+.cta-section h2 {
+  font-size: 1.75rem;
+  line-height: 2rem;
+  font-weight: bold;
+  color: #7e22ce;
+  margin-bottom: 1.5rem;
+}
+
+.cta-button {
+  background-color: #58cc02;
+  color: white;
+  font-weight: bold;
+  padding: 1rem 2rem;
+  font-size: 1.25rem;
+  border-radius: 1rem;
+  transition: background 0.3s ease;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  border: none;
+  cursor: pointer;
+}
+
+.cta-button:hover {
+  background-color: #46a302;
+}

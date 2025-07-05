@@ -1,0 +1,8 @@
+{
+  "hosting": {
+    "source": ".output/public"
+  },
+  "functions": {
+    "source": ".output/functions"
+  }
+}

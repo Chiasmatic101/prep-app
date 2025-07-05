@@ -1,0 +1,36 @@
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  content: [
+    './src/**/*.{js,ts,jsx,tsx}', // Ensures all source files are scanned
+  ],
+  theme: {
+    extend: {
+      fontFamily: {
+        'din-round': ['"din-round"', 'sans-serif'],
+      },
+      fontSize: {
+        body: ['1.25rem', '1.75rem'],
+        heading: ['1.75rem', '2rem'],
+        title: ['2.5rem', '2.75rem'],
+      },
+      colors: {
+        owl: 'rgb(88, 204, 2)',
+        'owl-dark': 'rgb(65, 153, 1)',
+        flamingo: 'rgb(255, 178, 178)',
+        bee: 'rgb(255, 200, 0)',
+        whale: 'rgb(24, 153, 214)',
+        macaw: 'rgb(28, 176, 246)',
+        'gray-swan': 'rgb(229, 229, 229)',
+        'gray-hare': 'rgb(175, 175, 175)',
+        'gray-wolf': 'rgb(119, 119, 119)',
+      },
+      borderRadius: {
+        duolarge: '2rem',
+      },
+      boxShadow: {
+        card: '0 4px 20px rgba(0,0,0,0.1)',
+      },
+    },
+  },
+  plugins: [],
+}
