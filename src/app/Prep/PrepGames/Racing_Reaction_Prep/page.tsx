@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { db, auth } from '@/firebase/config'
 import { doc, setDoc, collection, addDoc, onSnapshot } from 'firebase/firestore'
 import { onAuthStateChanged } from 'firebase/auth'
+import React from 'react';
 
 const LEVELS = [
   { name: 'Basic Reaction', tests: 5, description: 'Tap when you see the green light' },
