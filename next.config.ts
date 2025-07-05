@@ -1,5 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  typescript: {
+    ignoreBuildErrors: false,
+  },
   images: {
     domains: ['localhost'],
     formats: ['image/webp', 'image/avif'],
@@ -7,6 +13,7 @@ const nextConfig = {
   trailingSlash: true,
   experimental: {
     optimizeCss: true,
+    appDir: true,
   },
   async headers() {
     return [

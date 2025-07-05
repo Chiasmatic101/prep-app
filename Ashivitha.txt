@@ -1,0 +1,126 @@
+Ashivitha 
+
+Reading - this is a job not a project 
+
+but - reading 
+
+Understand 
+1
+Cognitiive testing and different cognitive domains 
+
+2.
+Understand chrontype and it's influence on cog domains and performance
+
+3. 
+Understand JetLag as a desync disorder - how does it effect cognition etc.. 
+
+4. 
+
+Why are Formula racing athletes at risk? 
+ Hint - lifestyle - Look at the F1 schedule, look at how long it takes to recover from Jet lang - how often are F1 drivers in the jet lag phase - try to quantify the effects - so a reduction in attention of 20 percent means what - fun math problem 
+If the car is moving at 200 mph - and their cognition is .5ms slower than normal - what distance would they travel 
+
+Understand risks -
+
+Cool video - https://www.youtube.com/watch?v=9zGaXl07dCg
+
+What Can we do to reduce the effects of JEtLag on DRivers 
+
+
+-----
+
+Actual Project
+Everyone has a natural chronotye - people are generally split into groups - early birds, night owls and mixed - 
+BUT 
+Everyone under 24 in full time education is forced to work during set school hours - that generally favors 'Early Birds' and is a disadvantage to Night Owls and Mixed chronotypes
+
+We know this has an effect on cognition and - Cognition is learning - so some students (early birds are at a natural advantage 
+
+We want to take what we learned from F1 drivers and use it to improve performance in learning 
+
+- So 
+Recruit 10 people - from 13 to 24 who are in full time education 
+1. Determine their Chronotyppe 
+2. Determine their academic schedule 
+3. Determine their activity, diet etc.. 
+
+For first time users and the younger ones - you can zoom call to supervise them when taking the tests. 
+
+
+Play - Prep Games and Play Cognifit tests - then 
+
+Project aim 2 - Validate the games/tests on The Prep website 
+
+
+
+Ask them to take cognitive tests 3 times a day - morning, afternoon and night time 
+
+DEtermine the impact of time of day Vs Cogntive performance 
+
+Does it match with chronotype 
+
+Is it consistent 
+
+
+
+
+
+
+Launch website  - Host and test 
+r
+
+
+Color Sort - Add message when last level is reached 
+
+
+
+Add sound to pattern memory test
+
+Should we add simon test?
+
+
+Add Timing - First time - logging in - Show Story 
+ - after 3 days - open up quiz 
+ - same again at different times of day 
+
+
+
+Modify the Survival Game to be more child friendly 
+
+Remove the death option - keep the logic the same 
+
+
+Change the popups from windows default 
+
+
+
+
+
+Lets go through story elements and make game more suitable for 13 - 18 year old 
+
+Step 1 of survival 
+
+You need to get warm! 
+
+You need to drink 
+
+You need to eat 
+
+
+Remove the Adventure Log - remove some of the langualge
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
