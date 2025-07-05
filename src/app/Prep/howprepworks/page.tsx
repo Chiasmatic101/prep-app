@@ -5,16 +5,16 @@ import { useEffect, useState, useCallback, useMemo } from 'react'
 import Lottie from 'lottie-react'
 
 // Lottie Animations
-import chronotypeAnimation from '/public/lotties/sun.json'
-import brainAnimation from '/public/lotties/brain.json'
-import jetlagAnimation from '/public/lotties/airplane.json'
-import lifestyleAnimation from '/public/lotties/lifestyle.json'
-import athleteAnimation from '/public/lotties/athlete.json'
+import chronotypeAnimation from '@/lotties/sun.json'
+import brainAnimation from '@/lotties/brain.json'
+import jetlagAnimation from '@/lotties/airplane.json'
+import lifestyleAnimation from '@/lotties/lifestyle.json'
+import athleteAnimation from '@/lotties/athlete.json'
 
-import sunAnimation from '/public/lotties/sun.json'
-import ongAnimation from '/public/lotties/Pong_1.json'
-import learningAnimation from '/public/lotties/learning.json'
-import memoryAnimation from '/public/lotties/memory.json'
+import sunAnimation from '@/lotties/sun.json'
+import ongAnimation from '@/lotties/Pong_1.json'
+import learningAnimation from '@/lotties/learning.json'
+import memoryAnimation from '@/lotties/memory.json'
 
 export default function PrepLandingPage() {
   const router = useRouter()
