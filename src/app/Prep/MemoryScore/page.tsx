@@ -16,18 +16,31 @@ import ongAnimation from '@/lotties/Pong_1.json'
 import learningAnimation from '@/lotties/learning.json'
 import memoryAnimation from '@/lotties/memory.json'
 
+interface InsightProps {
+  icon: string
+  title: string
+  desc: string
+}
+
+interface HelpSection {
+  title: string
+  color: string
+  text: string
+  animation: any
+}
+
 export default function PrepLandingPage() {
   const router = useRouter()
-  const [currentHour, setCurrentHour] = useState(6)
-  const [isPlaying, setIsPlaying] = useState(false)
-  const [mounted, setMounted] = useState(false)
+  const [currentHour, setCurrentHour] = useState<number>(6)
+  const [isPlaying, setIsPlaying] = useState<boolean>(false)
+  const [mounted, setMounted] = useState<boolean>(false)
 
   const scrollToSection = useCallback((id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
   }, [])
 
   const navigateToChronotype = useCallback(() => {
-    router.push('/Prep/chronotype')
+    router.push('/Prep/Registration')
   }, [router])
 
   useEffect(() => setMounted(true), [])
@@ -77,23 +90,23 @@ export default function PrepLandingPage() {
     }
   }, [currentHour, learningData])
 
-  const helpSections = [
+  const helpSections: HelpSection[] = [
     {
       title: 'Understand Your Chronotype',
       color: 'from-yellow-50 to-pink-100',
       text: `Your natural rhythm—called your chronotype—is influenced by your sleep, activity, and diet habits. We help you figure out whether you're a morning, evening, or somewhere-in-between type.`,
-      animation: sunAnimation,
+      animation: chronotypeAnimation,
     },
     {
       title: 'Measure Your Mind (the Fun Way)',
       color: 'from-pink-100 to-purple-100',
-      text: `Prep uses short, clinically validated games that test your memory, focus, and thinking speed. These aren’t just any games—they’re based on the same tests used in neuroscience labs.`,
+      text: `Prep uses short, clinically validated games that test your memory, focus, and thinking speed. These aren't just any games—they're based on the same tests used in neuroscience labs.`,
       animation: ongAnimation,
     },
     {
       title: 'Match Lifestyle to Learning',
       color: 'from-purple-100 to-blue-100',
-      text: `Once we know your brain’s rhythm and cognitive strengths, we suggest simple changes—adjusting sleep, improving your environment, timing meals—to help you peak when it matters most.`,
+      text: `Once we know your brain's rhythm and cognitive strengths, we suggest simple changes—adjusting sleep, improving your environment, timing meals—to help you peak when it matters most.`,
       animation: learningAnimation,
     },
     {
@@ -240,7 +253,7 @@ export default function PrepLandingPage() {
   )
 }
 
-const Insight = ({ icon, title, desc }) => (
+const Insight: React.FC<InsightProps> = ({ icon, title, desc }) => (
   <div className="bg-white/30 backdrop-blur-sm rounded-xl p-6 border border-white/40 hover:bg-white/40 transition-transform transform hover:scale-105">
     <div className="text-2xl mb-2">{icon}</div>
     <h3 className="font-semibold text-lg mb-2 text-gray-800">{title}</h3>

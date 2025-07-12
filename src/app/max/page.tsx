@@ -10,7 +10,7 @@ const Lottie = dynamic(() => import('lottie-react'), { ssr: false })
 import mainAppAnimation from '@/lotties/main_app.json'
 import maxAiAnimation from '@/lotties/max-ai.json'
 import trackSleepAnimation from '@/lotties/track_sleep.json'
-import pongAnimation from '@/lotties/pong.json'
+import pongAnimation from '@/lotties/Pong.json'
 import guessingAnimation from '@/lotties/guessing.json'
 import dataDrivenAnimation from '@/lotties/Data_Driven.json'
 import athleteAnimation from '@/lotties/athlete.json'
