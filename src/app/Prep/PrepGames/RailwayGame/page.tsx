@@ -12,11 +12,11 @@ const PADDING_X = 40
 const TRACK_Y_TOP = HEIGHT / 2 - 40 // AI track (top)
 const TRACK_Y_BOTTOM = HEIGHT / 2 + 40 // Player track (bottom)
 
-export const AMPLITUDE = 250 // px (peak side-to-side of AI)
-export const BASE_SPEED = 0.4 // radians/sec baseline - slow start
-export const SPEED_GROWTH = 0.05 // +5% per second (gentle ramp)
-export const SYNC_ZONE = 30 // px
-export const MAX_DISTANCE = 150 // px (lose when farther than this)
+const AMPLITUDE = 250 // px (peak side-to-side of AI)
+const BASE_SPEED = 0.4 // radians/sec baseline - slow start
+const SPEED_GROWTH = 0.05 // +5% per second (gentle ramp)
+const SYNC_ZONE = 30 // px
+const MAX_DISTANCE = 150 // px (lose when farther than this)
 
 const INPUT_SPEED = 420 // px/sec (player direct control)
 
