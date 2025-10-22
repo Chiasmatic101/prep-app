@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { auth, db } from '@/firebase/config'
 import { doc, setDoc } from 'firebase/firestore'
 import { onAuthStateChanged } from 'firebase/auth'
-import { calculateEnhancedSyncScore } from '../../../utils/syncScoreCalculator'
+import { calculateEnhancedSyncScore } from '../../../utils/enhancedsyncScoreCalculator'
 
 interface QuizResponses {
   // Core chronotype questions
