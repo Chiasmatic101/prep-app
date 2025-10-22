@@ -291,7 +291,7 @@ const RunnerGame: React.FC = () => {
       }, { merge: true });
 
       // Save detailed session data in separate collection
-      await addDoc(collection(db, 'gameSessionsDetailed'), {
+     await addDoc(collection(db, 'users', userId, 'gameSessionsDetailed'), {
         userId,
         gameType: 'colorRunner',
         ...sessionMetrics,

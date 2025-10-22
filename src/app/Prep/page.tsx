@@ -135,31 +135,39 @@ export default function PrepLandingPage() {
 
       {/* Explainers */}
       <section className="bg-white py-20 px-6" id="how-it-works">
-        <div className="max-w-6xl mx-auto space-y-24">
-          {[
-            {
-              title: 'Your natural rhythm affects how you learn',
-              animation: chronotypeAnimation,
+  <div className="max-w-6xl mx-auto space-y-24">
+
+  {/* Highlight Text */}
+<div className="text-center my-16">
+  <h2 className="text-3xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-purple-600 to-blue-600 leading-tight">
+    Did you know? Syncing with your natural learning rhythm can boost your grades.
+  </h2>
+</div>
+
+
+    {[
+      {
+        title: 'What is my natural learning rhythm?',
+        animation: chronotypeAnimation,
               color: 'text-pink-600',
-              text: 'Everyone has a chronotype. Some people peak early in the day, others later. When you learn matters almost as much as what you learn.'
+              text: 'Your learning rhythm - is a combination of your chronotype and your lifestyle  '
             },
             {
-              title: 'Your brain works differently across the day',
+              title: 'Your brain’s learning power changes throughout the day.',
               animation: brainAnimation,
               color: 'text-purple-600',
-              text: 'Memory, attention, and thinking speed fluctuate with your internal clock. Learning at the wrong time can mean wasted effort.'
-            },
+              text: 'Your memory, attention, and thinking speed rise and fall with your natural learning rhythm.' },
             {
-              title: "School schedules don't fit everyone",
+              title: "School schedules force everyone to learn at the same time.",
               animation: jetlagAnimation,
               color: 'text-blue-600',
               text: "Students who are out of sync feel like they're studying while jet-lagged. It's not laziness—it's biology."
             },
             {
-              title: 'Prep helps you align your day to your brain',
+              title: 'Good news — Prep can help!',
               animation: lifestyleAnimation,
               color: 'text-green-600',
-              text: 'We guide you to tweak sleep, routines, and study blocks to match your rhythm—so you learn better and score higher.'
+              text: 'With simple exercises and smart routines, you can train your brain to learn more easily — even during normal school hours.',
             },
             {
               title: 'Used by elite performers—adapted for students',
@@ -181,47 +189,15 @@ export default function PrepLandingPage() {
           <div className="text-center pt-8">
             <button
               onClick={navigateToChronotype}
-              className="bg-purple-600 hover:bg-purple-500 text-white px-10 py-4 rounded-full text-lg font-semibold shadow-lg transition-transform hover:scale-105 active:scale-95"
+              className="bg-blue-600 hover:bg-purple-500 text-white px-10 py-4 rounded-full text-lg font-semibold shadow-lg transition-transform hover:scale-105 active:scale-95"
             >
-              🔍 Discover Your Chronotype
+              🔍 Click here to discover your chronotype and learning score
             </button>
           </div>
         </div>
       </section>
 
-      {/* Circadian Learning */}
-      <section className={`py-20 px-6 bg-gradient-to-br ${computed.gradient}`}>
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4 text-gray-800">🧠 Your Brain's Natural Learning Rhythm</h2>
-          <p className="text-lg text-gray-700 mb-12">Discover how your learning ability naturally peaks and dips throughout the day.</p>
-          <div className="relative mx-auto mb-12 w-80 h-80">
-            <div className="absolute inset-0 border-2 border-white/30 rounded-full bg-white/10 backdrop-blur-sm" />
-            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-48 h-48 rounded-full bg-white/20 backdrop-blur-md border border-white/40 flex flex-col items-center justify-center">
-              <div className={`text-4xl font-bold ${computed.perfColor}`}>{computed.val}%</div>
-              <div className="text-sm mt-2 font-medium uppercase text-gray-700">Learning</div>
-            </div>
-            <div className="absolute inset-0 transition-transform duration-1000 ease-linear" style={{ transform: `rotate(${computed.rotate}deg)` }}>
-              <div className={`absolute w-12 h-12 rounded-full ${computed.celestialClass} -top-6 left-1/2 transform -translate-x-1/2 flex items-center justify-center text-xl`}>
-                {computed.celestial}
-              </div>
-            </div>
-            <div className="absolute -bottom-12 left-1/2 transform -translate-x-1/2">
-              <div className="text-xl font-bold text-purple-600">{computed.hr}:00 {computed.period}</div>
-            </div>
-          </div>
-          <button
-            onClick={togglePlayback}
-            className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 text-white px-8 py-3 rounded-full font-medium shadow-lg transition-transform hover:scale-105 active:scale-95 mb-12"
-          >
-            {isPlaying ? '⏸️ Pause Cycle' : '▶️ Start Day Cycle'}
-          </button>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-            <Insight icon="🌅" title="Morning Peak" desc="Your brain hits 90% learning capacity around 9–10 AM." />
-            <Insight icon="😴" title="Afternoon Dip" desc="Energy drops to 50–60% around 2–3 PM." />
-            <Insight icon="🌆" title="Evening Recovery" desc="A second wind lifts you back to 75–80% by evening." />
-          </div>
-        </div>
-      </section>
+   
 
       {/* How Prep Can Help */}
       <section className="bg-white py-20 px-6 text-center">
@@ -239,7 +215,56 @@ export default function PrepLandingPage() {
             </div>
           </section>
         ))}
-      </section>
+
+
+  {/* Call to Action Button */}
+  <div className="text-center pt-12">
+    <button
+      onClick={navigateToChronotype}
+      className="bg-green-600 hover:bg-purple-500 text-white px-10 py-4 rounded-full text-lg font-semibold shadow-lg transition-transform hover:scale-105 active:scale-95"
+    >
+      🔍 Click here to discover your chronotype and learning score
+    </button>
+  </div>
+</section>
+
+
+  
+
+
+
+
+
+
+ {/* Circadian Learning */}
+<section className={`py-20 px-6 bg-gradient-to-br ${computed.gradient}`}>
+  <div className="max-w-4xl mx-auto text-center">
+    <h2 className="text-3xl md:text-4xl font-bold mb-4 text-gray-800">🧠 Your Brain's Natural Learning Rhythm</h2>
+    <p className="text-lg text-gray-700 mb-12">Discover how your learning ability naturally peaks and dips throughout the day.</p>
+    <div className="relative mx-auto mb-12 w-80 h-80">
+      <div className="absolute inset-0 border-2 border-white/30 rounded-full bg-white/10 backdrop-blur-sm" />
+      <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-48 h-48 rounded-full bg-white/20 backdrop-blur-md border border-white/40 flex flex-col items-center justify-center">
+        <div className={`text-4xl font-bold ${computed.perfColor}`}>{computed.val}%</div>
+        <div className="text-sm mt-2 font-medium uppercase text-gray-700">Learning</div>
+      </div>
+      <div className="absolute inset-0 transition-transform duration-1000 ease-linear" style={{ transform: `rotate(${computed.rotate}deg)` }}>
+        <div className={`absolute w-12 h-12 rounded-full ${computed.celestialClass} -top-6 left-1/2 transform -translate-x-1/2 flex items-center justify-center text-xl`}>
+          {computed.celestial}
+        </div>
+      </div>
+      <div className="absolute -bottom-12 left-1/2 transform -translate-x-1/2">
+        <div className="text-xl font-bold text-purple-600">{computed.hr}:00 {computed.period}</div>
+      </div>
+    </div>
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+      <Insight icon="🌅" title="Morning Peak" desc="Your brain hits 90% learning capacity around 9–10 AM." />
+      <Insight icon="😴" title="Afternoon Dip" desc="Energy drops to 50–60% around 2–3 PM." />
+      <Insight icon="🌆" title="Evening Recovery" desc="A second wind lifts you back to 75–80% by evening." />
+    </div>
+  </div>
+</section>
+
+
 
       {/* Footer */}
       <footer className="bg-white border-t border-gray-200 px-6 py-10 text-sm text-gray-500 text-center">

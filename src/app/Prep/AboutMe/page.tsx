@@ -1,38 +1,94 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import Link from 'next/link'
+import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import { auth, db } from '@/firebase/config'
-import { doc, getDoc, addDoc, collection, setDoc } from 'firebase/firestore'
+import { doc, getDoc, addDoc, collection, setDoc, query, where, orderBy, limit, getDocs } from 'firebase/firestore'
 import { onAuthStateChanged } from 'firebase/auth'
-import { X, Clock, Utensils, Dumbbell, Moon } from 'lucide-react'
+import { TrendingUp, Brain, Target, Zap, BarChart, Activity, CheckCircle, Moon } from 'lucide-react'
+import { calculateEnhancedSyncScore, type CognitiveSession, type SleepEntry } from '../../../utils/enhancedsyncScoreCalculator'
+import LearningTimeline from '../../../components/LearningTimeline'
 
-// Types
+// Import the separated modal components
+import NutritionModal from '../../../components/AboutMeModals/NutritionModal'
+import ActivityModal from '../../../components/AboutMeModals/ActivityModal'
+import SleepModal from '../../../components/AboutMeModals/SleepModal'
+import ActiveChallengesStrip from '../../../components/AboutMeModals/ActiveChallengesStrip'
+
+// Challenge-related type definitions
+interface ChallengeProgress {
+  challengeId: string
+  startDate: string
+  isActive: boolean
+  currentDay: number
+  totalDays: number
+  dailyProgress: { [day: number]: boolean }
+  targetValue?: string
+  points: number
+  completedDays: number
+  notes?: string[]
+}
+
+interface UserChallengeData {
+  activeChallenges: ChallengeProgress[]
+  completedChallenges: ChallengeProgress[]
+  totalPoints: number
+  streaks: { [challengeId: string]: number }
+}
+
+// Updated UserData interface for AboutMe page to match Firebase structure
 interface UserData {
   name: string
   email: string
-  age: number
+  age?: number
   chronotype?: {
     chronotype: string
     outOfSync: number
+    responses: Record<string, string>  // Complete survey responses
+    timestamp: string
+    syncScore?: number
   }
-  responses?: {
-    animalType: string
-    bestMentalTime: string
-    alertTime: string
-    idealWakeTime: string
-    preferredSleepTime: string
-    morningFeel: string
-    difficultyWaking: string
-    [key: string]: string
+  syncScore?: number
+  learningPhase?: number
+  alignmentScores?: {
+    school: number
+    study: number
   }
+}
+
+interface EnhancedSyncData {
+  syncScore: number
+  schoolAlignment: number
+  studyAlignment: number
+  learningPhase: number
+  adaptiveComponents: {
+    observedAlignment: { school: number; study: number }
+    predictedAlignment: { school: number; study: number }
+    adaptationLevel: number
+    domainReliability: Record<string, number>
+  }
+  sleepMetrics: {
+    averageQuality: number
+    consistency: number
+    duration: number
+  }
+  learningTimeline: number[]
+  chronotype: { chronotype: string; outOfSync: number }
 }
 
 interface DietEntry {
   time: string
   type: 'Light' | 'Medium' | 'Heavy'
   description?: string
+}
+
+interface HydrationEntry {
+  time: string
+  type: 'Water' | 'Coffee' | 'Tea' | 'Energy Drink' | 'Soda'
+  amount: number
+  caffeineContent?: number
 }
 
 interface ActivityEntry {
@@ -42,461 +98,501 @@ interface ActivityEntry {
   duration: number
 }
 
-interface SleepEntry {
+interface SleepEntryForm {
   bedTime: string
   wakeTime: string
   date: string
+  wakingEvents?: number
 }
 
-interface ModalProps {
-  isOpen: boolean
-  onClose: () => void
-  onSave: (data: any) => void
-}
-
-// Diet Modal Component
-const DietModal: React.FC<ModalProps> = ({ isOpen, onClose, onSave }) => {
-  const [dietEntry, setDietEntry] = useState<DietEntry>({
-    time: '',
-    type: 'Medium',
-    description: ''
-  })
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    onSave(dietEntry)
-    setDietEntry({ time: '', type: 'Medium', description: '' })
-    onClose()
+// Complete mapping function for AboutMe page
+const mapSurveyResponsesToQuizFormat = (surveyResponses: Record<string, string>) => {
+  // Helper function to map natural wake time
+  const mapNaturalWake = (response: string): 'Before 8 AM' | '8–10 AM' | 'After 10 AM' => {
+    if (response === 'Before 8 AM') return 'Before 8 AM'
+    if (response === '8–10 AM') return '8–10 AM'
+    if (response === 'After 10 AM') return 'After 10 AM'
+    // Fallback mapping from older survey format
+    if (response.includes('Before 6') || response.includes('6–7') || response.includes('6–8')) return 'Before 8 AM'
+    if (response.includes('7–8') || response.includes('8–10')) return '8–10 AM'
+    return 'After 10 AM'
   }
 
-  const mealTypes = [
-    { 
-      type: 'Light' as const, 
-      emoji: '🥗', 
-      description: 'Snacks, fruits, light salads',
-      examples: 'Apple, yogurt, crackers, small salad'
-    },
-    { 
-      type: 'Medium' as const, 
-      emoji: '🍽️', 
-      description: 'Regular meals, balanced portions',
-      examples: 'Sandwich, pasta, regular lunch/dinner'
-    },
-    { 
-      type: 'Heavy' as const, 
-      emoji: '🍖', 
-      description: 'Large meals, multiple courses',
-      examples: 'Thanksgiving dinner, buffet, large portions'
-    }
-  ]
-
-  return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-          onClick={onClose}
-        >
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            className="bg-white/90 backdrop-blur-sm rounded-[2rem] p-8 border border-white/40 shadow-lg max-w-md w-full max-h-[90vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-purple-700 flex items-center gap-2">
-                <Utensils className="w-6 h-6" />
-                Track Your Meal
-              </h2>
-              <button
-                onClick={onClose}
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <Clock className="w-4 h-4 inline mr-1" />
-                  Meal Time
-                </label>
-                <input
-                  type="time"
-                  value={dietEntry.time}
-                  onChange={(e) => setDietEntry(prev => ({ ...prev, time: e.target.value }))}
-                  required
-                  className="w-full p-3 bg-white/50 backdrop-blur-sm border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Meal Type
-                </label>
-                <div className="space-y-3">
-                  {mealTypes.map((meal) => (
-                    <label
-                      key={meal.type}
-                      className={`block p-4 border rounded-xl cursor-pointer transition-all hover:border-pink-400 ${
-                        dietEntry.type === meal.type 
-                          ? 'border-pink-500 bg-pink-50/50' 
-                          : 'border-gray-200 bg-white/30'
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="mealType"
-                        value={meal.type}
-                        checked={dietEntry.type === meal.type}
-                        onChange={(e) => setDietEntry(prev => ({ ...prev, type: e.target.value as any }))}
-                        className="sr-only"
-                      />
-                      <div className="flex items-start gap-3">
-                        <span className="text-2xl">{meal.emoji}</span>
-                        <div>
-                          <div className="font-semibold text-gray-800">{meal.type} Meal</div>
-                          <div className="text-sm text-gray-600 mb-1">{meal.description}</div>
-                          <div className="text-xs text-gray-500">{meal.examples}</div>
-                        </div>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  What did you eat? (Optional)
-                </label>
-                <textarea
-                  value={dietEntry.description}
-                  onChange={(e) => setDietEntry(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="e.g., Chicken salad with vegetables"
-                  rows={2}
-                  className="w-full p-3 bg-white/50 backdrop-blur-sm border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent resize-none"
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 text-white py-3 rounded-xl font-semibold shadow-lg transition-all hover:scale-105"
-              >
-                Save Meal Entry
-              </button>
-            </form>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  )
-}
-
-// Activity Modal Component
-const ActivityModal: React.FC<ModalProps> = ({ isOpen, onClose, onSave }) => {
-  const [activityEntry, setActivityEntry] = useState<ActivityEntry>({
-    time: '',
-    type: 'Medium',
-    activity: '',
-    duration: 30
-  })
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    onSave(activityEntry)
-    setActivityEntry({ time: '', type: 'Medium', activity: '', duration: 30 })
-    onClose()
+  // Helper function to map focus time
+  const mapFocusTime = (response: string): 'Morning' | 'Afternoon' | 'Evening' => {
+    if (response === 'Morning') return 'Morning'
+    if (response === 'Afternoon') return 'Afternoon'
+    if (response === 'Evening') return 'Evening'
+    // Fallback for older survey
+    if (response === 'Late Night') return 'Evening'
+    return 'Afternoon' // Default
   }
 
-  const activityTypes = [
-    { 
-      type: 'Light' as const, 
-      emoji: '🚶', 
-      description: 'Low intensity, relaxed movement',
-      examples: 'Walking, playing outside, stretching, casual games'
-    },
-    { 
-      type: 'Medium' as const, 
-      emoji: '🏃', 
-      description: 'Moderate intensity, some effort',
-      examples: 'Softball practice, bike riding, dancing, swimming'
-    },
-    { 
-      type: 'Intense' as const, 
-      emoji: '💪', 
-      description: 'High intensity, challenging workout',
-      examples: 'Running, soccer, basketball, gym workout'
-    }
-  ]
-
-  return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-          onClick={onClose}
-        >
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            className="bg-white/90 backdrop-blur-sm rounded-[2rem] p-8 border border-white/40 shadow-lg max-w-md w-full max-h-[90vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-purple-700 flex items-center gap-2">
-                <Dumbbell className="w-6 h-6" />
-                Track Your Activity
-              </h2>
-              <button
-                onClick={onClose}
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <Clock className="w-4 h-4 inline mr-1" />
-                  Activity Time
-                </label>
-                <input
-                  type="time"
-                  value={activityEntry.time}
-                  onChange={(e) => setActivityEntry(prev => ({ ...prev, time: e.target.value }))}
-                  required
-                  className="w-full p-3 bg-white/50 backdrop-blur-sm border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Activity Intensity
-                </label>
-                <div className="space-y-3">
-                  {activityTypes.map((activity) => (
-                    <label
-                      key={activity.type}
-                      className={`block p-4 border rounded-xl cursor-pointer transition-all hover:border-pink-400 ${
-                        activityEntry.type === activity.type 
-                          ? 'border-pink-500 bg-pink-50/50' 
-                          : 'border-gray-200 bg-white/30'
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="activityType"
-                        value={activity.type}
-                        checked={activityEntry.type === activity.type}
-                        onChange={(e) => setActivityEntry(prev => ({ ...prev, type: e.target.value as any }))}
-                        className="sr-only"
-                      />
-                      <div className="flex items-start gap-3">
-                        <span className="text-2xl">{activity.emoji}</span>
-                        <div>
-                          <div className="font-semibold text-gray-800">{activity.type} Intensity</div>
-                          <div className="text-sm text-gray-600 mb-1">{activity.description}</div>
-                          <div className="text-xs text-gray-500">{activity.examples}</div>
-                        </div>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  What activity did you do?
-                </label>
-                <input
-                  type="text"
-                  value={activityEntry.activity}
-                  onChange={(e) => setActivityEntry(prev => ({ ...prev, activity: e.target.value }))}
-                  placeholder="e.g., Soccer practice, Morning jog, Dance class"
-                  required
-                  className="w-full p-3 bg-white/50 backdrop-blur-sm border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Duration (minutes)
-                </label>
-                <input
-                  type="number"
-                  value={activityEntry.duration}
-                  onChange={(e) => setActivityEntry(prev => ({ ...prev, duration: parseInt(e.target.value) || 0 }))}
-                  min="5"
-                  max="480"
-                  required
-                  className="w-full p-3 bg-white/50 backdrop-blur-sm border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 text-white py-3 rounded-xl font-semibold shadow-lg transition-all hover:scale-105"
-              >
-                Save Activity Entry
-              </button>
-            </form>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  )
-}
-
-// Sleep Modal Component
-const SleepModal: React.FC<ModalProps> = ({ isOpen, onClose, onSave }) => {
-  const [sleepEntry, setSleepEntry] = useState<SleepEntry>({
-    bedTime: '',
-    wakeTime: '',
-    date: new Date().toISOString().split('T')[0]
-  })
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    onSave(sleepEntry)
-    setSleepEntry({ bedTime: '', wakeTime: '', date: new Date().toISOString().split('T')[0] })
-    onClose()
+  // Helper function to map test time preference
+  const mapTestTime = (response: string): 'Morning' | 'Midday' | 'Evening' => {
+    if (response === 'Morning') return 'Morning'
+    if (response === 'Midday') return 'Midday'
+    if (response === 'Evening') return 'Evening'
+    return 'Midday' // Default
   }
 
-  const calculateSleepDuration = () => {
-    if (!sleepEntry.bedTime || !sleepEntry.wakeTime) return ''
-    
-    const bedTime = new Date(`${sleepEntry.date}T${sleepEntry.bedTime}`)
-    let wakeTime = new Date(`${sleepEntry.date}T${sleepEntry.wakeTime}`)
-    
-    if (wakeTime <= bedTime) {
-      wakeTime.setDate(wakeTime.getDate() + 1)
-    }
-    
-    const diffMs = wakeTime.getTime() - bedTime.getTime()
-    const hours = Math.floor(diffMs / (1000 * 60 * 60))
-    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60))
-    
-    return `${hours}h ${minutes}m`
+  // Helper function to map school start time
+  const mapSchoolStart = (response: string): 'Before 7:30 AM' | '7:30–8:00 AM' | 'After 8:00 AM' => {
+    if (response === 'Before 7:30 AM' || response.includes('Before 7')) return 'Before 7:30 AM'
+    if (response === '7:30–8:00 AM' || response.includes('7:30–8:00') || response.includes('7–8')) return '7:30–8:00 AM'
+    if (response === 'After 8:00 AM' || response.includes('After 8') || response.includes('8–9') || response.includes('After 9')) return 'After 8:00 AM'
+    return '7:30–8:00 AM' // Default
   }
 
-  return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-          onClick={onClose}
-        >
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            className="bg-white/90 backdrop-blur-sm rounded-[2rem] p-8 border border-white/40 shadow-lg max-w-md w-full"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-purple-700 flex items-center gap-2">
-                <Moon className="w-6 h-6" />
-                Track Your Sleep
-              </h2>
-              <button
-                onClick={onClose}
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+  // Helper function to map homework time
+  const mapHomeworkTime = (response: string): 'Right after school' | 'After dinner' | 'Late at night' | 'Depends' => {
+    if (response === 'Right after school') return 'Right after school'
+    if (response === 'After dinner') return 'After dinner'
+    if (response === 'Late at night') return 'Late at night'
+    if (response === 'Depends') return 'Depends'
+    
+    // Map based on best study time if homework time is missing
+    const bestStudyTime = surveyResponses.bestStudyTime
+    if (bestStudyTime === 'Early morning' || bestStudyTime === 'Late morning') return 'Right after school'
+    if (bestStudyTime === 'Afternoon') return 'Right after school'
+    if (bestStudyTime === 'Evening') return 'After dinner'
+    
+    return 'After dinner' // Default
+  }
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Sleep Date
-                </label>
-                <input
-                  type="date"
-                  value={sleepEntry.date}
-                  onChange={(e) => setSleepEntry(prev => ({ ...prev, date: e.target.value }))}
-                  required
-                  className="w-full p-3 bg-white/50 backdrop-blur-sm border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-                />
-              </div>
+  // Helper function to map wake school time
+  const mapWakeSchool = (response: string): 'Before 6 AM' | '6–6:59 AM' | '7–7:59 AM' | '8 AM or later' => {
+    if (response === 'Before 6 AM' || response.includes('Before 6')) return 'Before 6 AM'
+    if (response === '6–6:59 AM' || response.includes('6–6:59')) return '6–6:59 AM'
+    if (response === '7–7:59 AM' || response.includes('7–7:59')) return '7–7:59 AM'
+    if (response === '8 AM or later' || response.includes('8 AM or later')) return '8 AM or later'
+    return '7–7:59 AM' // Default
+  }
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  🌙 Bedtime
-                </label>
-                <input
-                  type="time"
-                  value={sleepEntry.bedTime}
-                  onChange={(e) => setSleepEntry(prev => ({ ...prev, bedTime: e.target.value }))}
-                  required
-                  className="w-full p-3 bg-white/50 backdrop-blur-sm border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-                />
-              </div>
+  // Helper function to map morning feeling
+  const mapWakeFeel = (response: string): 'Wide awake' | 'A bit slow' | 'Super groggy' => {
+    if (response === 'Wide awake' || response === 'Very alert') return 'Wide awake'
+    if (response === 'A bit slow' || response === 'Somewhat alert') return 'A bit slow'
+    if (response === 'Super groggy' || response === 'Very tired' || response === 'Somewhat sleepy' || response === 'Very sleepy') return 'Super groggy'
+    return 'A bit slow' // Default
+  }
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  ☀️ Wake Time
-                </label>
-                <input
-                  type="time"
-                  value={sleepEntry.wakeTime}
-                  onChange={(e) => setSleepEntry(prev => ({ ...prev, wakeTime: e.target.value }))}
-                  required
-                  className="w-full p-3 bg-white/50 backdrop-blur-sm border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-                />
-              </div>
+  // Helper function to map weekend bedtime
+  const mapBedWeekend = (response: string): 'Before 10 PM' | '10 PM–Midnight' | 'After Midnight' => {
+    if (response === 'Before 10 PM' || response.includes('Before 10')) return 'Before 10 PM'
+    if (response === '10 PM–Midnight' || response.includes('10 PM–Midnight') || response.includes('10–11')) return '10 PM–Midnight'
+    if (response === 'After Midnight' || response.includes('After Midnight') || response.includes('After 11')) return 'After Midnight'
+    return '10 PM–Midnight' // Default
+  }
 
-              {sleepEntry.bedTime && sleepEntry.wakeTime && (
-                <div className="bg-purple-50/80 rounded-xl p-4 text-center">
-                  <div className="text-sm text-gray-600 mb-1">Total Sleep Duration</div>
-                  <div className="text-2xl font-bold text-purple-700">{calculateSleepDuration()}</div>
-                </div>
-              )}
+  // Helper function to map home time
+  const mapHomeTime = (response: string): 'Before 3:30 PM' | '3:30–4:30 PM' | 'After 4:30 PM' => {
+    if (response === 'Before 3:30 PM' || response.includes('Before 3')) return 'Before 3:30 PM'
+    if (response === '3:30–4:30 PM' || response.includes('3:30–4:30') || response.includes('3–4')) return '3:30–4:30 PM'
+    if (response === 'After 4:30 PM' || response.includes('After 4:30') || response.includes('After 4')) return 'After 4:30 PM'
+    return '3:30–4:30 PM' // Default
+  }
 
-              <button
-                type="submit"
-                className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 text-white py-3 rounded-xl font-semibold shadow-lg transition-all hover:scale-105"
-              >
-                Save Sleep Entry
-              </button>
-            </form>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  )
+  // Helper function to map extra time
+  const mapExtraTime = (response: string): 'Before 4 PM' | '4–6 PM' | 'After 6 PM' | 'Varies' => {
+    if (response === 'Before 4 PM') return 'Before 4 PM'
+    if (response === '4–6 PM') return '4–6 PM'
+    if (response === 'After 6 PM') return 'After 6 PM'
+    if (response === 'Varies') return 'Varies'
+    
+    // Infer from after-school academic programs
+    const afterSchoolAcademics = surveyResponses.afterSchoolAcademics || surveyResponses.extras
+    if (afterSchoolAcademics === 'Yes, every day' || afterSchoolAcademics !== 'None') return 'After 6 PM'
+    if (afterSchoolAcademics === 'Yes, occasionally') return 'Varies'
+    
+    return 'Varies' // Default
+  }
+
+  // Helper function to map extras
+  const mapExtras = (response: string): 'AoPS' | 'RSM' | 'Kumon' | 'Other' | 'None' => {
+    if (response === 'AoPS') return 'AoPS'
+    if (response === 'RSM') return 'RSM'
+    if (response === 'Kumon') return 'Kumon'
+    if (response === 'Other') return 'Other'
+    if (response === 'None') return 'None'
+    
+    // Map from afterSchoolAcademics if extras is missing
+    const afterSchoolAcademics = surveyResponses.afterSchoolAcademics
+    if (afterSchoolAcademics === 'No') return 'None'
+    if (afterSchoolAcademics?.includes('Yes')) return 'Other'
+    
+    return 'None' // Default
+  }
+
+  // Return the mapped quiz format responses
+  return {
+    // Core chronotype questions (required by sync calculator)
+    naturalWake: mapNaturalWake(surveyResponses.naturalWake || surveyResponses.idealWakeTime || ''),
+    focusTime: mapFocusTime(surveyResponses.focusTime || surveyResponses.alertTime || ''),
+    testTime: mapTestTime(surveyResponses.testTime || surveyResponses.bestMentalTime || ''),
+    schoolStart: mapSchoolStart(surveyResponses.schoolStart || ''),
+    homeworkTime: mapHomeworkTime(surveyResponses.homeworkTime || ''),
+    
+    // School schedule details (required by sync calculator)
+    wakeSchool: mapWakeSchool(surveyResponses.wakeSchool || surveyResponses.schoolWake || ''),
+    wakeFeel: mapWakeFeel(surveyResponses.wakeFeel || surveyResponses.morningFeel || surveyResponses.alertnessSchool || ''),
+    bedWeekend: mapBedWeekend(surveyResponses.bedWeekend || surveyResponses.weekendSleep || ''),
+    homeTime: mapHomeTime(surveyResponses.homeTime || surveyResponses.schoolEnd || ''),
+    extraTime: mapExtraTime(surveyResponses.extraTime || ''),
+    extras: mapExtras(surveyResponses.extras || ''),
+    
+    // Additional fields that enhance the calculation
+    weekendWake: surveyResponses.weekendWake || 'After 10 AM',
+    bestStudyTime: surveyResponses.bestStudyTime || 'Afternoon',
+    concentrationTime: surveyResponses.concentrationTime || 'Afternoon (12 PM–5 PM)',
+    memoryTime: surveyResponses.memoryTime || 'Morning',
+    homeworkDuration: surveyResponses.homeworkDuration || '1–2 hours',
+    studyBreaks: surveyResponses.studyBreaks || 'Every 45–60 minutes',
+    mealTimes: surveyResponses.mealTimes || '6–7 PM',
+    screenTime: surveyResponses.screenTime || '1 hour before bed'
+  }
 }
 
+// Main Component
 export default function AboutMePage() {
   const [userData, setUserData] = useState<UserData | null>(null)
+  const [cognitiveData, setCognitiveData] = useState<CognitiveSession[]>([])
+  const [sleepData, setSleepData] = useState<SleepEntry[]>([])
+  const [enhancedSyncData, setEnhancedSyncData] = useState<EnhancedSyncData | null>(null)
+  const [challengeData, setChallengeData] = useState<UserChallengeData>({
+    activeChallenges: [],
+    completedChallenges: [],
+    totalPoints: 0,
+    streaks: {}
+  })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [dietModalOpen, setDietModalOpen] = useState(false)
   const [activityModalOpen, setActivityModalOpen] = useState(false)
+  const [nutritionModalOpen, setNutritionModalOpen] = useState(false)
   const [sleepModalOpen, setSleepModalOpen] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState('')
   const router = useRouter()
 
+  // Fetch functions
+  const fetchCognitiveData = async (userId: string) => {
+    try {
+      const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000)
+      const cognitiveQuery = query(
+        collection(db, 'users', userId, 'cognitivePerformance'),
+        where('timestamp', '>=', sevenDaysAgo),
+        orderBy('timestamp', 'desc'),
+        limit(200)
+      )
+      
+      const cognitiveSnapshot = await getDocs(cognitiveQuery)
+      const sessions: CognitiveSession[] = cognitiveSnapshot.docs.map(doc => doc.data() as CognitiveSession)
+      
+      setCognitiveData(sessions)
+      return sessions
+    } catch (error) {
+      console.error('Error fetching cognitive data:', error)
+      return []
+    }
+  }
+
+  const fetchChallengeData = async (userId: string) => {
+    try {
+      const challengeDoc = await getDoc(doc(db, 'users', userId, 'challenges', 'shifting'))
+      if (challengeDoc.exists()) {
+        setChallengeData(challengeDoc.data() as UserChallengeData)
+      }
+    } catch (error) {
+      console.error('Error fetching challenge data:', error)
+    }
+  }
+
+  const fetchSleepData = async (userId: string) => {
+    try {
+      const thirtyDaysAgo = new Date()
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+      
+      const sleepQuery = query(
+        collection(db, 'users', userId, 'sleepEntries'),
+        orderBy('date', 'desc'),
+        limit(30)
+      )
+      
+      const sleepSnapshot = await getDocs(sleepQuery)
+      const entries: SleepEntry[] = sleepSnapshot.docs.map(doc => ({
+        ...doc.data(),
+        date: doc.id
+      } as SleepEntry))
+      
+      setSleepData(entries)
+      return entries
+    } catch (error) {
+      console.error('Error fetching sleep data:', error)
+      return []
+    }
+  }
+
+  // Handle functions
+  const handleLogProgress = async (challengeId: string, success: boolean) => {
+    if (!auth.currentUser || !challengeData) return
+
+    const challengeIndex = challengeData.activeChallenges.findIndex(c => c.challengeId === challengeId)
+    if (challengeIndex === -1) return
+
+    const updatedChallenges = [...challengeData.activeChallenges]
+    const challenge = updatedChallenges[challengeIndex]
+
+    challenge.dailyProgress[challenge.currentDay] = success
+    if (success) {
+      challenge.completedDays += 1
+      challenge.points += 50 // base points for challenge
+    }
+
+    challenge.currentDay += 1
+
+    if (challenge.currentDay > challenge.totalDays) {
+      challenge.isActive = false
+      
+      const updatedData = {
+        ...challengeData,
+        activeChallenges: updatedChallenges.filter(c => c.challengeId !== challengeId),
+        completedChallenges: [...challengeData.completedChallenges, challenge],
+        totalPoints: challengeData.totalPoints + challenge.points
+      }
+      setChallengeData(updatedData)
+    } else {
+      const updatedData = {
+        ...challengeData,
+        activeChallenges: updatedChallenges
+      }
+      setChallengeData(updatedData)
+    }
+
+    try {
+      await setDoc(doc(db, 'users', auth.currentUser.uid, 'challenges', 'shifting'), 
+        challenge.currentDay > challenge.totalDays ? 
+        {
+          ...challengeData,
+          activeChallenges: updatedChallenges.filter(c => c.challengeId !== challengeId),
+          completedChallenges: [...challengeData.completedChallenges, challenge],
+          totalPoints: challengeData.totalPoints + challenge.points
+        } : 
+        {
+          ...challengeData,
+          activeChallenges: updatedChallenges
+        }
+      )
+      
+      setSaveSuccess(`Challenge progress logged!`)
+      setTimeout(() => setSaveSuccess(''), 2000)
+    } catch (error) {
+      console.error('Error logging progress:', error)
+      setError('Failed to log progress')
+    }
+  }
+
+  const handleSaveNutrition = async (data: { meals: DietEntry[], hydration: HydrationEntry[], date: string }) => {
+    try {
+      if (auth.currentUser) {
+        const totalCaffeine = data.hydration.reduce((total, entry) => total + (entry.caffeineContent || 0), 0)
+        const totalFluids = data.hydration.reduce((total, entry) => total + entry.amount, 0)
+        const mealCount = data.meals.length
+
+        const nutritionEntry = {
+          ...data,
+          timestamp: new Date(),
+          totalCaffeine,
+          totalFluids,
+          mealCount
+        }
+
+        await setDoc(doc(db, 'users', auth.currentUser.uid, 'nutritionEntries', data.date), nutritionEntry)
+        
+        setSaveSuccess(`Nutrition entry saved: ${mealCount} meals, ${data.hydration.length} beverages`)
+        setTimeout(() => setSaveSuccess(''), 3000)
+      }
+    } catch (error) {
+      console.error('Error saving nutrition entry:', error)
+      setError('Failed to save nutrition entry')
+    }
+  }
+
+  const handleSaveActivity = async (data: ActivityEntry) => {
+    try {
+      if (auth.currentUser) {
+        await addDoc(collection(db, 'users', auth.currentUser.uid, 'activityEntries'), {
+          ...data,
+          timestamp: new Date(),
+          date: new Date().toISOString().split('T')[0]
+        })
+        setSaveSuccess('Activity entry saved successfully')
+        setTimeout(() => setSaveSuccess(''), 3000)
+      }
+    } catch (error) {
+      console.error('Error saving activity entry:', error)
+      setError('Failed to save activity entry')
+    }
+  }
+
+  const handleSaveSleep = async (data: SleepEntryForm) => {
+    try {
+      if (auth.currentUser) {
+        const calculateSleepDurationObject = (bedTime: string, wakeTime: string, date: string, wakingEvents?: number) => {
+          const bedDateTime = new Date(`${date}T${bedTime}`)
+          let wakeDateTime = new Date(`${date}T${wakeTime}`)
+          
+          if (wakeDateTime <= bedDateTime) {
+            wakeDateTime.setDate(wakeDateTime.getDate() + 1)
+          }
+          
+          const diffMs = wakeDateTime.getTime() - bedDateTime.getTime()
+          const hours = Math.floor(diffMs / (1000 * 60 * 60))
+          const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60))
+          
+          return { 
+            hours, 
+            minutes, 
+            totalMinutes: Math.floor(diffMs / (1000 * 60))
+          }
+        }
+
+        const sleepDuration = calculateSleepDurationObject(data.bedTime, data.wakeTime, data.date, data.wakingEvents)
+        
+        // Calculate sleep quality score
+        const totalHours = sleepDuration.totalMinutes / 60
+        const w_dur = 0.7, w_wake = 0.3, alpha = 0.10
+        const f_dur = Math.min(totalHours / 7.5, 1.0)
+        const f_wake = Math.max(Math.min(1 - alpha * (data.wakingEvents || 0), 1), 0)
+        const sleepQualityScore = Math.round(100 * (w_dur * f_dur + w_wake * f_wake))
+
+        await setDoc(doc(db, 'users', auth.currentUser.uid, 'sleepEntries', data.date), {
+          ...data,
+          timestamp: new Date(),
+          sleepDuration,
+          sleepQualityScore
+        })
+        
+        setSaveSuccess('Sleep entry saved successfully')
+        setTimeout(() => setSaveSuccess(''), 3000)
+        
+        // Refresh sleep data and recalculate sync score
+        const updatedSleepData = await fetchSleepData(auth.currentUser.uid)
+        if (userData?.chronotype?.responses) {
+          const mappedResponses = mapSurveyResponsesToQuizFormat(userData.chronotype.responses)
+          const enhancedData = calculateEnhancedSyncScore(
+            mappedResponses,
+            cognitiveData,
+            updatedSleepData
+          )
+          setEnhancedSyncData(enhancedData)
+        }
+
+      }
+    } catch (error) {
+      console.error('Error saving sleep entry:', error)
+      setError('Failed to save sleep entry')
+    }
+  }
+
+  // Helper functions
+  const getChronotypeEmoji = (chronotype: string) => {
+    switch (chronotype) {
+      case 'Lion': return '🦁'
+      case 'Bear': return '🐻'
+      case 'Wolf': return '🐺'
+      case 'Dolphin': return '🐬'
+      default: return '🧠'
+    }
+  }
+
+  const getSyncScoreColor = (score: number) => {
+    if (score >= 80) return 'text-green-600 bg-green-50 border-green-200'
+    if (score >= 60) return 'text-blue-600 bg-blue-50 border-blue-200'
+    if (score >= 40) return 'text-yellow-600 bg-yellow-50 border-yellow-200'
+    return 'text-red-600 bg-red-50 border-red-200'
+  }
+
+  const getAlignmentColor = (score: number) => {
+    if (score >= 75) return 'text-green-600'
+    if (score >= 50) return 'text-yellow-600'
+    return 'text-red-600'
+  }
+
+  const formatTime = (hours: number) => {
+    const h = Math.floor(hours)
+    const m = Math.floor((hours % 1) * 60)
+    return `${h}:${String(m).padStart(2, '0')}`
+  }
+
+  const getChronotypeDescription = (chronotype: string, isYoungerStudent = false) => {
+    if (isYoungerStudent) {
+      switch (chronotype) {
+        case 'Lion': return 'Early risers who are most productive in the morning. Natural leaders who prefer to wake up early and get things done.'
+        case 'Bear': return 'Follow the solar cycle and are most productive during the day. They make up about 55% of the population.'
+        case 'Wolf': return 'Night owls who are most creative and productive in the evening. They prefer to sleep in and stay up late.'
+        case 'Dolphin': return 'Light sleepers with erratic routines who struggle with traditional schedules. Highly intelligent and cautious.'
+        default: return 'Your unique sleep and energy patterns that help us understand when you learn best.'
+      }
+    } else {
+      switch (chronotype) {
+        case 'Lion': return 'Early chronotypes with peak cognitive performance in morning hours. Natural tendency toward leadership and structured scheduling.'
+        case 'Bear': return 'Solar-aligned chronotypes following natural circadian rhythms. Peak productivity during standard daylight hours.'
+        case 'Wolf': return 'Evening chronotypes with enhanced creativity during late hours. Optimal performance in afternoon and evening periods.'
+        case 'Dolphin': return 'Variable chronotypes with sensitive sleep patterns. Highly analytical with irregular but intense focus periods.'
+        default: return 'Individual circadian patterns that influence optimal performance timing.'
+      }
+    }
+  }
+
+  // Usage in AboutMe page useEffect:
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         try {
           const userDoc = await getDoc(doc(db, 'users', user.uid))
           if (userDoc.exists()) {
-            setUserData(userDoc.data() as UserData)
+            const userData = userDoc.data() as UserData
+            setUserData(userData)
+            
+            const [cognitiveData, sleepData] = await Promise.all([
+              fetchCognitiveData(user.uid),
+              fetchSleepData(user.uid),
+              fetchChallengeData(user.uid)
+            ])
+            
+            // Use chronotype.responses with comprehensive mapping
+            if (userData.chronotype?.responses) {
+              try {
+                const mappedResponses = mapSurveyResponsesToQuizFormat(userData.chronotype.responses)
+                
+                const enhancedData = calculateEnhancedSyncScore(
+                  mappedResponses,
+                  cognitiveData,
+                  sleepData
+                )
+                setEnhancedSyncData(enhancedData)
+              } catch (error) {
+                console.error('Error calculating enhanced sync score:', error)
+                // Fallback to stored chronotype data
+                setEnhancedSyncData({
+                  syncScore: userData.chronotype.syncScore || userData.syncScore || 0,
+                  schoolAlignment: userData.alignmentScores?.school || 0,
+                  studyAlignment: userData.alignmentScores?.study || 0,
+                  learningPhase: userData.learningPhase || 12,
+                  chronotype: { 
+                    chronotype: userData.chronotype.chronotype, 
+                    outOfSync: userData.chronotype.outOfSync 
+                  },
+                  adaptiveComponents: {
+                    observedAlignment: { school: 0, study: 0 },
+                    predictedAlignment: { school: 0, study: 0 },
+                    adaptationLevel: 0,
+                    domainReliability: {}
+                  },
+                  sleepMetrics: { averageQuality: 0, consistency: 0, duration: 0 },
+                  learningTimeline: []
+                })
+              }
+            }
           } else {
             setError('User profile not found')
           }
@@ -513,90 +609,6 @@ export default function AboutMePage() {
     return () => unsubscribe()
   }, [router])
 
-  const handleSaveDiet = async (data: DietEntry) => {
-    try {
-      if (auth.currentUser) {
-        await addDoc(collection(db, 'users', auth.currentUser.uid, 'dietEntries'), {
-          ...data,
-          timestamp: new Date(),
-          date: new Date().toISOString().split('T')[0]
-        })
-        setSaveSuccess('Meal entry saved successfully! 🍽️')
-        setTimeout(() => setSaveSuccess(''), 3000)
-      }
-    } catch (error) {
-      console.error('Error saving diet entry:', error)
-      setError('Failed to save meal entry')
-    }
-  }
-
-  const handleSaveActivity = async (data: ActivityEntry) => {
-    try {
-      if (auth.currentUser) {
-        await addDoc(collection(db, 'users', auth.currentUser.uid, 'activityEntries'), {
-          ...data,
-          timestamp: new Date(),
-          date: new Date().toISOString().split('T')[0]
-        })
-        setSaveSuccess('Activity entry saved successfully! 🏃')
-        setTimeout(() => setSaveSuccess(''), 3000)
-      }
-    } catch (error) {
-      console.error('Error saving activity entry:', error)
-      setError('Failed to save activity entry')
-    }
-  }
-
-  const handleSaveSleep = async (data: SleepEntry) => {
-    try {
-      if (auth.currentUser) {
-        await setDoc(doc(db, 'users', auth.currentUser.uid, 'sleepEntries', data.date), {
-          ...data,
-          timestamp: new Date(),
-          sleepDuration: calculateSleepDuration(data.bedTime, data.wakeTime, data.date)
-        })
-        setSaveSuccess('Sleep entry saved successfully! 🌙')
-        setTimeout(() => setSaveSuccess(''), 3000)
-      }
-    } catch (error) {
-      console.error('Error saving sleep entry:', error)
-      setError('Failed to save sleep entry')
-    }
-  }
-
-  const calculateSleepDuration = (bedTime: string, wakeTime: string, date: string) => {
-    const bedDateTime = new Date(`${date}T${bedTime}`)
-    let wakeDateTime = new Date(`${date}T${wakeTime}`)
-    
-    if (wakeDateTime <= bedDateTime) {
-      wakeDateTime.setDate(wakeDateTime.getDate() + 1)
-    }
-    
-    const diffMs = wakeDateTime.getTime() - bedDateTime.getTime()
-    const hours = Math.floor(diffMs / (1000 * 60 * 60))
-    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60))
-    
-    return { hours, minutes, totalMinutes: Math.floor(diffMs / (1000 * 60)) }
-  }
-
-  const getChronotypeEmoji = (chronotype: string) => {
-    switch (chronotype) {
-      case 'Lion': return '🦁'
-      case 'Bear': return '🐻'
-      case 'Wolf': return '🐺'
-      case 'Dolphin': return '🐬'
-      default: return '🧠'
-    }
-  }
-
-  const getSyncStatus = (outOfSync: number) => {
-    if (outOfSync <= 30) return { status: 'Well Synced', color: 'text-green-600', bg: 'bg-green-50' }
-    if (outOfSync <= 60) return { status: 'Moderately Synced', color: 'text-yellow-600', bg: 'bg-yellow-50' }
-    return { status: 'Out of Sync', color: 'text-red-600', bg: 'bg-red-50' }
-  }
-
-  const syncStatus = userData?.chronotype ? getSyncStatus(userData.chronotype.outOfSync) : null
-
   if (loading) {
     return (
       <main className="min-h-screen bg-gradient-to-br from-yellow-50 to-pink-100 flex items-center justify-center px-6">
@@ -606,7 +618,7 @@ export default function AboutMePage() {
           className="text-center"
         >
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
-          <p className="text-purple-600 font-medium">Loading your profile...</p>
+          <p className="text-purple-600 font-medium">Loading your enhanced profile...</p>
         </motion.div>
       </main>
     )
@@ -620,7 +632,7 @@ export default function AboutMePage() {
           animate={{ opacity: 1, y: 0 }}
           className="text-center bg-white p-10 rounded-2xl shadow-xl max-w-md"
         >
-          <h2 className="text-2xl font-bold text-red-600 mb-4">⚠️ Error</h2>
+          <h2 className="text-2xl font-bold text-red-600 mb-4">Error</h2>
           <p className="text-gray-700 mb-6">{error}</p>
           <button
             onClick={() => router.push('/auth')}
@@ -634,6 +646,30 @@ export default function AboutMePage() {
   }
 
   if (!userData) return null
+
+  const displayData = enhancedSyncData || {
+    syncScore: userData.syncScore || 0,
+    schoolAlignment: userData.alignmentScores?.school || 0,
+    studyAlignment: userData.alignmentScores?.study || 0,
+    learningPhase: userData.learningPhase || 12,
+    chronotype: userData.chronotype || { chronotype: 'Bear', outOfSync: 0 },
+    adaptiveComponents: {
+      observedAlignment: { school: 0, study: 0 },
+      predictedAlignment: { school: 0, study: 0 },
+      adaptationLevel: 0,
+      domainReliability: {}
+    },
+    sleepMetrics: {
+      averageQuality: 0,
+      consistency: 0,
+      duration: 0
+    },
+    learningTimeline: []
+  }
+
+  const hasReliableData = enhancedSyncData && enhancedSyncData.adaptiveComponents.adaptationLevel > 0.2
+  const cognitiveDataPoints = Object.values(enhancedSyncData?.adaptiveComponents.domainReliability || {})
+    .reduce((sum, r) => sum + (r > 0 ? 1 : 0), 0)
 
   return (
     <main className="min-h-screen font-sans bg-gradient-to-br from-yellow-50 to-pink-100 text-gray-900 px-6 py-16">
@@ -650,6 +686,36 @@ export default function AboutMePage() {
           </motion.div>
         )}
 
+        {/* Navigation Links */}
+        <div className="mb-6">
+          <div className="flex gap-4 flex-wrap">
+            <Link
+              href="/Prep/Insights"
+              className="inline-flex items-center gap-2 text-purple-700 hover:text-purple-800 hover:underline"
+            >
+              <span>🔭</span>
+              Insights (Shift Plan)
+            </Link>
+            
+            <Link
+              href="/sleep-quality"
+              className="inline-flex items-center gap-2 text-purple-700 hover:text-purple-800 hover:underline"
+            >
+              <span>🌙</span>
+              Sleep Quality Score
+            </Link>
+          </div>
+        </div>
+
+        {/* Active Challenges Strip */}
+        {challengeData && challengeData.activeChallenges.length > 0 && (
+          <ActiveChallengesStrip
+            activeChallenges={challengeData.activeChallenges}
+            onLogProgress={handleLogProgress}
+            onViewAllChallenges={() => router.push('/shifting-challenges')}
+          />
+        )}
+
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -658,67 +724,290 @@ export default function AboutMePage() {
           className="text-center mb-12"
         >
           <h1 className="text-4xl md:text-5xl font-extrabold mb-4">
-            Welcome, <span className="text-pink-500">{userData.name}</span>! 👋
+            Hi <span className="text-pink-500">{userData.name}</span> 👋
           </h1>
-          <p className="text-lg text-gray-700">Here's your personalized learning profile</p>
+          <p className="text-lg text-gray-700">Your personalized learning profile</p>
         </motion.div>
 
-        {/* Main Profile Card */}
+        {/* Enhanced Main Profile Card */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.2 }}
           className="bg-white/40 backdrop-blur-sm rounded-[2rem] p-8 border border-white/40 shadow-lg mb-8"
         >
-          {userData.chronotype ? (
+          {userData.chronotype?.responses ? (
             <div className="text-center">
-              <div className="text-6xl mb-4">
-                {getChronotypeEmoji(userData.chronotype.chronotype)}
+              <div className="bg-green-50/80 border border-green-200 rounded-xl p-4 mb-6">
+                <div className="flex items-center gap-2 mb-2">
+                  <CheckCircle className="w-5 h-5 text-green-600" />
+                  <span className="font-semibold text-green-800">Complete Assessment Available</span>
+                </div>
+                <p className="text-green-700 text-sm">
+                  Based on {Object.keys(userData.chronotype.responses).length} survey responses including chronotype, 
+                  schedule, and study preferences.
+                </p>
               </div>
-              <h2 className="text-3xl font-bold text-purple-700 mb-2">
-                {userData.chronotype.chronotype} Chronotype
+
+              <div className="text-6xl mb-4">
+                {getChronotypeEmoji(displayData.chronotype.chronotype)}
+              </div>
+
+              <h2 className="text-2xl font-bold text-gray-800 mb-2">
+                {displayData.chronotype.chronotype} Chronotype
               </h2>
-              <p className="text-lg text-gray-700 mb-6 max-w-2xl mx-auto">
-                {userData.chronotype.chronotype === 'Lion' && 'Early risers who are most productive in the morning. Natural leaders who prefer to wake up early and get things done.'}
-                {userData.chronotype.chronotype === 'Bear' && 'Follow the solar cycle and are most productive during the day. They make up about 55% of the population.'}
-                {userData.chronotype.chronotype === 'Wolf' && 'Night owls who are most creative and productive in the evening. They prefer to sleep in and stay up late.'}
-                {userData.chronotype.chronotype === 'Dolphin' && 'Light sleepers with erratic routines who struggle with traditional schedules. Highly intelligent and cautious.'}
+              <p className="text-gray-600 mb-6">
+                {getChronotypeDescription(displayData.chronotype.chronotype)}
               </p>
-              
-              {syncStatus && (
-                <div className={`inline-flex items-center px-4 py-2 rounded-full ${syncStatus.bg} border`}>
-                  <span className={`font-semibold ${syncStatus.color}`}>
-                    Sync Status: {syncStatus.status} ({userData.chronotype.outOfSync}%)
-                  </span>
+
+              {/* Building Profile section */}
+              {!hasReliableData && (
+                <div className="bg-blue-50/80 border border-blue-200 rounded-xl p-4 mb-6">
+                  <div className="flex items-center gap-2 mb-2">
+                    <BarChart className="w-5 h-5 text-blue-600" />
+                    <span className="font-semibold text-blue-800">Building Your Personalized Profile</span>
+                  </div>
+                  <p className="text-blue-700 text-sm mb-3">
+                    Using your comprehensive survey responses as baseline. Play cognitive games and track sleep for even more personalized insights.
+                  </p>
+                  <div className="grid grid-cols-2 gap-4 text-xs">
+                    <div>
+                      <div className="font-medium text-blue-800 mb-1">Survey Data Available:</div>
+                      <div className="space-y-1">
+                        {userData.chronotype.responses.naturalWake && (
+                          <div className="flex items-center gap-1">
+                            <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                            <span>Natural chronotype</span>
+                          </div>
+                        )}
+                        {userData.chronotype.responses.schoolStart && (
+                          <div className="flex items-center gap-1">
+                            <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                            <span>School schedule</span>
+                          </div>
+                        )}
+                        {userData.chronotype.responses.homeworkTime && (
+                          <div className="flex items-center gap-1">
+                            <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                            <span>Study preferences</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-medium text-blue-800 mb-1">Additional Data:</div>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-1">
+                          <div className={`w-2 h-2 ${cognitiveDataPoints > 0 ? 'bg-green-400' : 'bg-gray-300'} rounded-full`}></div>
+                          <span>Cognitive games: {cognitiveDataPoints}/5</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <div className={`w-2 h-2 ${sleepData.length > 0 ? 'bg-green-400' : 'bg-gray-300'} rounded-full`}></div>
+                          <span>Sleep entries: {sleepData.length}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <div className={`w-2 h-2 ${hasReliableData ? 'bg-green-400' : 'bg-yellow-400'} rounded-full`}></div>
+                          <span>Adaptation: {Math.round((enhancedSyncData?.adaptiveComponents.adaptationLevel || 0) * 100)}%</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Enhanced Sync Score Display */}
+              <div className={`rounded-xl p-6 border-2 mb-6 ${getSyncScoreColor(displayData.syncScore)}`}>
+                <div className="text-center mb-4">
+                  <div className="flex items-center justify-center gap-2 mb-2">
+                    <TrendingUp className="w-6 h-6" />
+                    <h3 className="text-xl font-bold">
+                      {hasReliableData ? 'Adaptive' : 'Predicted'} Sync Score
+                    </h3>
+                  </div>
+                  <div className="text-4xl font-bold mb-2">{displayData.syncScore}/100</div>
+                  <div className="text-sm font-medium mb-4">
+                    {displayData.syncScore >= 80 ? 'Excellent Schedule Alignment' :
+                     displayData.syncScore >= 60 ? 'Good Schedule Alignment' :
+                     displayData.syncScore >= 40 ? 'Moderate Schedule Alignment' : 'Schedule Needs Optimization'}
+                  </div>
+                </div>
+                
+                {/* Alignment Breakdown */}
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div className="bg-white/50 rounded-lg p-4">
+                    <div className={`text-2xl font-bold ${getAlignmentColor(displayData.schoolAlignment)}`}>
+                      {displayData.schoolAlignment}%
+                    </div>
+                    <div className="text-sm text-gray-600">School Schedule Alignment</div>
+                    <div className="text-xs text-gray-500">How well your school hours match your natural rhythm</div>
+                  </div>
+                  <div className="bg-white/50 rounded-lg p-4">
+                    <div className={`text-2xl font-bold ${getAlignmentColor(displayData.studyAlignment)}`}>
+                      {displayData.studyAlignment}%
+                    </div>
+                    <div className="text-sm text-gray-600">Study Time Alignment</div>
+                    <div className="text-xs text-gray-500">How well your study schedule matches your peak focus</div>
+                  </div>
+                </div>
+                
+                {/* Peak Learning Time */}
+                <div className="bg-purple-100/80 rounded-lg p-4 mb-4">
+                  <div className="flex items-center justify-center gap-2 mb-2">
+                    <Brain className="w-5 h-5 text-purple-700" />
+                    <span className="font-semibold text-purple-700">Peak Learning Time</span>
+                  </div>
+                  <div className="text-2xl font-bold text-purple-800">
+                    {formatTime(displayData.learningPhase)}
+                  </div>
+                  <div className="text-xs text-gray-600 mt-1">
+                    Based on your {hasReliableData ? 'observed performance' : 'chronotype assessment'}
+                  </div>
+                </div>
+
+                {/* Sleep Metrics (if available) */}
+                {enhancedSyncData && enhancedSyncData.sleepMetrics.averageQuality > 0 && (
+                  <div className="bg-indigo-50/80 rounded-lg p-4">
+                    <h4 className="font-semibold text-indigo-800 mb-3 flex items-center gap-2">
+                      <Moon className="w-4 h-4" />
+                      Sleep Quality Metrics
+                    </h4>
+                    <div className="grid grid-cols-3 gap-3 text-sm">
+                      <div className="text-center">
+                        <div className="font-bold text-indigo-700">{Math.round(enhancedSyncData.sleepMetrics.averageQuality)}/100</div>
+                        <div className="text-xs text-gray-600">Quality</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="font-bold text-indigo-700">{Math.round(enhancedSyncData.sleepMetrics.consistency)}%</div>
+                        <div className="text-xs text-gray-600">Consistency</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="font-bold text-indigo-700">{enhancedSyncData.sleepMetrics.duration.toFixed(1)}h</div>
+                        <div className="text-xs text-gray-600">Duration</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Performance vs Prediction Comparison */}
+              {hasReliableData && (
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                  <div className="bg-gradient-to-r from-green-50 to-emerald-100 rounded-xl p-4 border border-green-200">
+                    <h4 className="font-semibold text-green-800 mb-2 flex items-center gap-2">
+                      <Activity className="w-4 h-4" />
+                      Observed Performance
+                    </h4>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>During School:</span>
+                        <span className="font-bold">{Math.round(enhancedSyncData.adaptiveComponents.observedAlignment.school * 100)}%</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span>During Study:</span>
+                        <span className="font-bold">{Math.round(enhancedSyncData.adaptiveComponents.observedAlignment.study * 100)}%</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-gradient-to-r from-blue-50 to-cyan-100 rounded-xl p-4 border border-blue-200">
+                    <h4 className="font-semibold text-blue-800 mb-2 flex items-center gap-2">
+                      <Zap className="w-4 h-4" />
+                      Chronotype Prediction
+                    </h4>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>During School:</span>
+                        <span className="font-bold">{Math.round(enhancedSyncData.adaptiveComponents.predictedAlignment.school * 100)}%</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span>During Study:</span>
+                        <span className="font-bold">{Math.round(enhancedSyncData.adaptiveComponents.predictedAlignment.study * 100)}%</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Enhanced Recommendations */}       
+              {displayData.syncScore < 70 && userData.chronotype?.responses && (
+                <div className="bg-blue-50/80 rounded-lg p-4 text-left">
+                  <h4 className="font-bold text-blue-800 mb-2 flex items-center gap-2">
+                    <Target className="w-4 h-4" />
+                    Personalized Recommendations
+                  </h4>
+                  <div className="text-sm text-blue-700 space-y-1">
+                    {displayData.schoolAlignment < 50 && (
+                      <div>• Focus on evening review sessions to reinforce learning when your natural rhythm conflicts with school hours</div>
+                    )}
+                    {displayData.studyAlignment < 50 && (
+                      <div>• Try shifting homework time closer to {formatTime(displayData.learningPhase)} for better focus</div>
+                    )}
+                    {userData.chronotype.responses.wakeFeel === 'Super groggy' && (
+                      <div>• Consider a gradual wake-up routine with light exposure to ease morning grogginess</div>
+                    )}
+                    {userData.chronotype.responses.bedWeekend === 'After Midnight' && userData.chronotype.responses.wakeSchool?.includes('Before 7') && (
+                      <div>• Large weekend sleep-in periods may be disrupting your weekday rhythm - try to keep weekend wake times within 1-2 hours of weekdays</div>
+                    )}
+                    {userData.chronotype.responses.homeworkTime === 'Late at night' && userData.chronotype.responses.focusTime !== 'Evening' && (
+                      <div>• Your late-night homework schedule may not match your natural focus time - consider moving study sessions earlier</div>
+                    )}
+                    {userData.chronotype.responses.concentrationTime && !userData.chronotype.responses.concentrationTime.includes(userData.chronotype.responses.homeworkTime || '') && (
+                      <div>• Your study time doesn't align with when you concentrate best - try scheduling homework during your peak concentration window</div>
+                    )}
+                    <div>• Maintain consistent sleep-wake times to strengthen your natural circadian rhythm</div>
+                    {!hasReliableData && (
+                      <div>• Play cognitive games throughout the day to build your personalized performance profile</div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
           ) : (
             <div className="text-center py-8">
               <div className="text-4xl mb-4">🧠</div>
-              <h2 className="text-2xl font-bold text-gray-700 mb-4">Chronotype Assessment Needed</h2>
-              <p className="text-gray-600 mb-6">Complete your chronotype quiz to unlock personalized insights!</p>
+              <h2 className="text-2xl font-bold text-gray-700 mb-4">Complete Assessment Required</h2>
+              <p className="text-gray-600 mb-6">Take our comprehensive chronotype and learning assessment to unlock personalized insights</p>
               <button
                 onClick={() => router.push('/chronotype-quiz')}
                 className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 text-white px-8 py-3 rounded-full font-semibold shadow-lg transition-all hover:scale-105"
               >
-                Take Quiz Now
+                Start Complete Assessment
               </button>
             </div>
           )}
         </motion.div>
 
+        {/* Update the LearningTimeline component usage condition */}
+        {userData.chronotype?.responses && displayData && (
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.4 }}
+            className="mb-8"
+          >
+            <LearningTimeline
+              learningPhase={displayData.learningPhase}
+              responses={mapSurveyResponsesToQuizFormat(userData.chronotype.responses)}
+              syncScore={displayData.syncScore}
+              alignmentScores={{
+                school: displayData.schoolAlignment,
+                study: displayData.studyAlignment
+              }}
+            />
+          </motion.div>
+        )}
+
         {/* Profile Details Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          {/* Basic Info */}
+          {/* Survey data summary in profile details */}
           <motion.div
             initial={{ opacity: 0, x: -30 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6, delay: 0.4 }}
+            transition={{ duration: 0.6, delay: 0.5 }}
             className="bg-white/40 backdrop-blur-sm rounded-xl p-6 border border-white/40 shadow-lg"
           >
             <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
-              📊 Basic Info
+              📊 Profile Data
             </h3>
             <div className="space-y-3">
               <div className="flex justify-between">
@@ -729,37 +1018,65 @@ export default function AboutMePage() {
                 <span className="text-gray-600">Age:</span>
                 <span className="font-medium">{userData.age} years old</span>
               </div>
+              {userData.chronotype?.responses && (
+                <>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Survey Questions:</span>
+                    <span className="font-medium text-sm">{Object.keys(userData.chronotype.responses).length} completed</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Assessment Date:</span>
+                    <span className="font-medium text-sm">
+                      {new Date(userData.chronotype.timestamp).toLocaleDateString()}
+                    </span>
+                  </div>
+                </>
+              )}
+              <div className="flex justify-between">
+                <span className="text-gray-600">Cognitive Sessions:</span>
+                <span className="font-medium text-sm">{cognitiveData.length} sessions</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Sleep Entries:</span>
+                <span className="font-medium text-sm">{sleepData.length} nights</span>
+              </div>
             </div>
           </motion.div>
 
-          {/* My Brain */}
+          {/* Chronotype Details */}
           <motion.div
             initial={{ opacity: 0, y: -30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.5 }}
-            className="bg-gradient-to-br from-purple-50 to-pink-100 rounded-xl p-6 border border-purple-200 shadow-lg"
+            transition={{ duration: 0.6, delay: 0.6 }}
+            className="bg-gradient-to-br from-purple-50 to-blue-100 rounded-xl p-6 border border-purple-200 shadow-lg"
           >
             <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
-              🧠 My Brain
+              🧠 Chronotype Details
             </h3>
             <div className="space-y-3">
-              {userData.chronotype ? (
+              {userData.chronotype?.responses ? (
                 <>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Type:</span>
                     <span className="font-medium flex items-center text-sm">
-                      {getChronotypeEmoji(userData.chronotype.chronotype)} {userData.chronotype.chronotype}
+                      {getChronotypeEmoji(displayData.chronotype.chronotype)} {displayData.chronotype.chronotype}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Sync Status:</span>
-                    <span className={`font-medium text-sm ${getSyncStatus(userData.chronotype.outOfSync).color}`}>
-                      {getSyncStatus(userData.chronotype.outOfSync).status}
+                    <span className="text-gray-600">Sync Score:</span>
+                    <span className={`font-medium text-sm ${getSyncScoreColor(displayData.syncScore).split(' ')[0]}`}>
+                      {displayData.syncScore}/100
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Adaptation:</span>
+                    <span className="font-medium text-sm">
+                      {Math.round((enhancedSyncData?.adaptiveComponents.adaptationLevel || 0) * 100)}%
                     </span>
                   </div>
                   <div className="pt-2">
                     <button
-                      onClick={() => router.push('/my-brain')}
+                      onClick={() => router.push('/Prep/MyBrain')}
                       className="w-full bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
                     >
                       View Details
@@ -773,30 +1090,31 @@ export default function AboutMePage() {
                     onClick={() => router.push('/chronotype-quiz')}
                     className="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded-full text-xs font-medium transition"
                   >
-                    Take Quiz
+                    Start Assessment
                   </button>
                 </div>
               )}
             </div>
           </motion.div>
 
-          {/* My Life */}
+          {/* Lifestyle Tracking */}
           <motion.div
             initial={{ opacity: 0, y: -30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.55 }}
+            transition={{ duration: 0.6, delay: 0.7 }}
             className="bg-gradient-to-br from-green-50 to-blue-100 rounded-xl p-6 border border-green-200 shadow-lg"
           >
             <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
-              🌱 My Life
+              🌱 Lifestyle Tracking
             </h3>
             <div className="space-y-2">
               <button
-                onClick={() => setDietModalOpen(true)}
+                onClick={() => setNutritionModalOpen(true)}
                 className="w-full bg-green-600 hover:bg-green-500 text-white px-3 py-2 rounded-lg text-sm font-medium transition flex items-center justify-center gap-1"
               >
-                🍽️ Diet
+                🍽️ Nutrition & Hydration
               </button>
+
               <button
                 onClick={() => setActivityModalOpen(true)}
                 className="w-full bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded-lg text-sm font-medium transition flex items-center justify-center gap-1"
@@ -813,86 +1131,135 @@ export default function AboutMePage() {
           </motion.div>
         </div>
 
-        {/* Optimal Times Section - Now separate and full width */}
-        {userData.responses && (
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.6 }}
-            className="bg-white/40 backdrop-blur-sm rounded-xl p-6 border border-white/40 shadow-lg mb-8"
-          >
-            <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
-              ⏰ Your Optimal Times
-            </h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-              <div className="text-center">
-                <span className="text-gray-600 block mb-1">Best Mental Performance</span>
-                <span className="font-medium">{userData.responses.bestMentalTime}</span>
-              </div>
-              <div className="text-center">
-                <span className="text-gray-600 block mb-1">Most Alert</span>
-                <span className="font-medium">{userData.responses.alertTime}</span>
-              </div>
-              <div className="text-center">
-                <span className="text-gray-600 block mb-1">Ideal Wake Time</span>
-                <span className="font-medium">{userData.responses.idealWakeTime}</span>
-              </div>
-              <div className="text-center">
-                <span className="text-gray-600 block mb-1">Preferred Sleep Time</span>
-                <span className="font-medium">{userData.responses.preferredSleepTime}</span>
-              </div>
-            </div>
-          </motion.div>
-        )}
-
-        {/* Animal Type Card */}
-        {userData.responses?.animalType && (
+        {/* Domain Reliability Display */}
+        {hasReliableData && enhancedSyncData?.adaptiveComponents?.domainReliability && (
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.8 }}
-            className="bg-gradient-to-r from-purple-100 to-pink-100 rounded-xl p-6 border border-white/40 shadow-lg mb-8"
+            className="bg-white/40 backdrop-blur-sm rounded-[2rem] p-8 border border-white/40 shadow-lg mb-8"
           >
-            <h3 className="text-xl font-bold text-gray-800 mb-3">🔍 Your Learning Style</h3>
-            <p className="text-gray-700 text-lg">{userData.responses.animalType}</p>
+            <h3 className="text-2xl font-bold text-purple-700 mb-6 text-center flex items-center justify-center gap-2">
+              <Target className="w-6 h-6" />
+              Cognitive Domain Reliability
+            </h3>
+            
+            {(() => {
+              try {
+                const domainReliability = enhancedSyncData?.adaptiveComponents?.domainReliability;
+                
+                if (!domainReliability || typeof domainReliability !== 'object') {
+                  return (
+                    <div className="text-center text-gray-500 py-8">
+                      <p>Domain reliability data is being calculated...</p>
+                    </div>
+                  );
+                }
+                
+                const domains = Object.entries(domainReliability);
+                
+                if (domains.length === 0) {
+                  return (
+                    <div className="text-center text-gray-500 py-8">
+                      <p>No cognitive domains tracked yet. Play more games to see reliability metrics.</p>
+                    </div>
+                  );
+                }
+                
+                // Dynamic grid based on number of domains
+                const gridClass = domains.length <= 3 ? 'grid-cols-1 md:grid-cols-3' : 
+                                 domains.length <= 4 ? 'grid-cols-2 md:grid-cols-4' : 
+                                 'grid-cols-2 md:grid-cols-5';
+                
+                return (
+                  <div className={`grid ${gridClass} gap-4`}>
+                    {domains.map(([domain, reliability]) => (
+                      <div key={domain} className="text-center bg-white/50 rounded-xl p-4">
+                        <div className="text-sm text-gray-600 mb-2 capitalize font-medium">
+                          {domain.replace(/([A-Z])/g, ' $1').trim()}
+                        </div>
+                        <div className={`text-2xl font-bold mb-2 ${
+                          reliability > 0.5 ? 'text-green-600' : 
+                          reliability > 0.2 ? 'text-yellow-600' : 
+                          'text-red-600'
+                        }`}>
+                          {Math.round((reliability || 0) * 100)}%
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div
+                            className={`h-2 rounded-full ${
+                              reliability > 0.5 ? 'bg-green-500' : 
+                              reliability > 0.2 ? 'bg-yellow-500' : 
+                              'bg-red-500'
+                            }`}
+                            style={{ width: `${Math.max((reliability || 0) * 100, 5)}%` }}
+                          />
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          {reliability > 0.5 ? 'High confidence' : 
+                           reliability > 0.2 ? 'Building data' : 
+                           'Need more data'}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              } catch (error) {
+                console.error('Error rendering domain reliability:', error);
+                return (
+                  <div className="text-center text-red-500 py-8">
+                    <p>Error loading domain reliability data</p>
+                  </div>
+                );
+              }
+            })()}
+            
+            <div className="text-center mt-6">
+              <p className="text-sm text-gray-600">
+                Reliability indicates how confident we are in your personalized performance patterns for each cognitive domain
+              </p>
+            </div>
           </motion.div>
         )}
 
-        {/* Optimization Section */}
+        {/* Academic Performance Enhancement Section */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.8 }}
+          transition={{ duration: 0.6, delay: 0.9 }}
           className="bg-white/40 backdrop-blur-sm rounded-[2rem] p-8 border border-white/40 shadow-lg mb-8"
         >
           <h3 className="text-2xl font-bold text-purple-700 mb-6 text-center">
-            🎯 Optimizing Your Cognition For
+            🎯 Academic Performance Enhancement
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Learning Card */}
+            {/* Cognitive Preparation Card */}
             <div className="bg-gradient-to-br from-blue-50 to-cyan-100 rounded-xl p-6 border border-blue-200 hover:shadow-lg transition-all hover:scale-105 cursor-pointer group">
               <div className="text-center">
                 <div className="text-4xl mb-3 group-hover:scale-110 transition-transform">📚</div>
-                <h4 className="text-xl font-bold text-blue-700 mb-3">Learning</h4>
+                <h4 className="text-xl font-bold text-blue-700 mb-3">Cognitive Preparation</h4>
                 <p className="text-blue-600 text-sm mb-4">
-                  Optimize your brain for absorbing new information and building understanding
+                  Optimize your cognitive state before studying with evidence-based techniques
                 </p>
-                <button className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-full text-sm font-medium transition-all">
-                  Get Learning Tips
+                <button 
+                  className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-full text-sm font-medium transition-all"
+                  onClick={() => router.push('/Prep/BrainWarmup')}
+                >
+                  Prepare for Study Session
                 </button>
               </div>
             </div>
 
-            {/* Exam Prep Card */}
+            {/* Exam Preparation Card */}
             <div className="bg-gradient-to-br from-orange-50 to-yellow-100 rounded-xl p-6 border border-orange-200 hover:shadow-lg transition-all hover:scale-105 cursor-pointer group">
               <div className="text-center">
-                <div className="text-4xl mb-3 group-hover:scale-110 transition-transform">📝</div>
-                <h4 className="text-xl font-bold text-orange-700 mb-3">Exam Prep</h4>
+                <div className="text-4xl mb-3 group-hover:scale-110 transition-transform">📋</div>
+                <h4 className="text-xl font-bold text-orange-700 mb-3">Exam Preparation</h4>
                 <p className="text-orange-600 text-sm mb-4">
                   Enhance memory consolidation and review strategies for effective preparation
                 </p>
                 <button className="bg-orange-600 hover:bg-orange-500 text-white px-4 py-2 rounded-full text-sm font-medium transition-all">
-                  Get Prep Strategies
+                  View Study Strategies
                 </button>
               </div>
             </div>
@@ -906,7 +1273,7 @@ export default function AboutMePage() {
                   Maximize focus, recall, and mental clarity during test-taking
                 </p>
                 <button className="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-full text-sm font-medium transition-all">
-                  Get Performance Tips
+                  Optimize Performance
                 </button>
               </div>
             </div>
@@ -925,31 +1292,36 @@ export default function AboutMePage() {
               onClick={() => router.push('/dashboard')}
               className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 text-white px-8 py-3 rounded-full font-semibold shadow-lg transition-all hover:scale-105"
             >
-              📈 View Dashboard
+              📈 Analytics Dashboard
             </button>
             <button
               onClick={() => router.push('/chronotype-quiz')}
               className="bg-white/50 backdrop-blur-sm hover:bg-white/70 text-purple-700 px-8 py-3 rounded-full font-semibold border border-purple-300 transition-all hover:scale-105"
             >
-              🔄 Retake Quiz
+              🔄 Reassess Profile
             </button>
           </div>
           <p className="text-gray-600 text-sm">
-            Your chronotype helps us recommend the best study times and techniques for you
+            {hasReliableData 
+              ? 'Personalized recommendations based on your unique cognitive performance patterns' 
+              : 'Evidence-based recommendations tailored to your circadian preferences and cognitive patterns'
+            }
           </p>
         </motion.div>
 
         {/* Lifestyle Tracking Modals */}
-        <DietModal 
-          isOpen={dietModalOpen} 
-          onClose={() => setDietModalOpen(false)} 
-          onSave={handleSaveDiet} 
+        <NutritionModal
+          isOpen={nutritionModalOpen} 
+          onClose={() => setNutritionModalOpen(false)} 
+          onSave={handleSaveNutrition} 
         />
+
         <ActivityModal 
           isOpen={activityModalOpen} 
           onClose={() => setActivityModalOpen(false)} 
           onSave={handleSaveActivity} 
         />
+
         <SleepModal 
           isOpen={sleepModalOpen} 
           onClose={() => setSleepModalOpen(false)} 

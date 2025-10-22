@@ -2,11 +2,35 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { auth, db } from '@/firebase/config'
+import { collection, addDoc, updateDoc, doc } from 'firebase/firestore'
+import { onAuthStateChanged } from 'firebase/auth'
 
 interface Level {
   name: string;
   tests: number;
   description: string;
+}
+
+interface SessionData {
+  gameType: string;
+  levelData: {
+    level: number;
+    levelName: string;
+    reactionTimes: number[];
+    averageReactionTime: number;
+    errors: number;
+    accuracy: number;
+  }[];
+  overallStats: {
+    totalTests: number;
+    totalErrors: number;
+    overallAccuracy: number;
+    averageReactionTime: number;
+    bestReactionTime: number;
+  };
+  duration: number;
+  timestamp: Date;
 }
 
 const LEVELS: Level[] = [
@@ -21,6 +45,10 @@ type GameState = 'introStart' | 'intro' | 'target_display' | 'waiting' | 'ready'
 
 export default function ReactionTimeGame() {
   const router = useRouter()
+  const [userId, setUserId] = useState<string | null>(null)
+  const [gameStartTime] = useState<Date>(new Date())
+  const [allLevelData, setAllLevelData] = useState<SessionData['levelData']>([])
+  
   const [gameState, setGameState] = useState<GameState>('introStart')
   const [level, setLevel] = useState<number>(1)
   const [currentTest, setCurrentTest] = useState<number>(0)
@@ -37,6 +65,14 @@ export default function ReactionTimeGame() {
   const [isProcessing, setIsProcessing] = useState<boolean>(false)
   const timeouts = useRef<NodeJS.Timeout[]>([])
 
+  // Firebase auth listener
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setUserId(user?.uid || null)
+    })
+    return () => unsubscribe()
+  }, [])
+
   const clearAllTimeouts = useCallback((): void => {
     timeouts.current.forEach(t => clearTimeout(t))
     timeouts.current = []
@@ -52,6 +88,83 @@ export default function ReactionTimeGame() {
       showLevelIntro()
     }
   }, [gameState, level])
+
+  const saveGameSession = async (sessionData: SessionData) => {
+    if (!userId) {
+      console.log('No user logged in, saving to localStorage')
+      const savedSessions = JSON.parse(localStorage.getItem('reactionTimeSessions') || '[]')
+      const updatedSessions = [...savedSessions, sessionData]
+      localStorage.setItem('reactionTimeSessions', JSON.stringify(updatedSessions))
+      return
+    }
+
+    try {
+      // Save detailed session data
+      await addDoc(collection(db, 'users', userId, 'reactionTimeSessions'), {
+        ...sessionData,
+        createdAt: new Date()
+      })
+
+      // Update user's main game stats
+      const userDocRef = doc(db, 'users', userId)
+      const gameStats = {
+        [`games.reactionTime.lastPlayed`]: new Date(),
+        [`games.reactionTime.totalSessions`]: (sessionData.overallStats.totalTests || 0),
+        [`games.reactionTime.averageReactionTime`]: sessionData.overallStats.averageReactionTime,
+        [`games.reactionTime.bestReactionTime`]: sessionData.overallStats.bestReactionTime,
+        [`games.reactionTime.accuracy`]: sessionData.overallStats.overallAccuracy
+      }
+
+      await updateDoc(userDocRef, gameStats)
+      console.log('Reaction time session saved successfully')
+    } catch (error) {
+      console.error('Error saving session data:', error)
+      // Fall back to localStorage
+      const savedSessions = JSON.parse(localStorage.getItem('reactionTimeSessions') || '[]')
+      const updatedSessions = [...savedSessions, sessionData]
+      localStorage.setItem('reactionTimeSessions', JSON.stringify(updatedSessions))
+    }
+  }
+
+  const finishGame = async () => {
+    const gameEndTime = new Date()
+    const duration = Math.round((gameEndTime.getTime() - gameStartTime.getTime()) / 1000)
+    
+    // Calculate overall statistics
+    const allReactionTimes = allLevelData.flatMap(level => level.reactionTimes)
+    const totalErrors = allLevelData.reduce((sum, level) => sum + level.errors, 0)
+    const totalTests = allLevelData.reduce((sum, level) => sum + level.reactionTimes.length, 0)
+    
+    const sessionData: SessionData = {
+      gameType: 'reactionTime',
+      levelData: allLevelData,
+      overallStats: {
+        totalTests,
+        totalErrors,
+        overallAccuracy: totalTests > 0 ? Math.round(((totalTests - totalErrors) / totalTests) * 100) : 0,
+        averageReactionTime: allReactionTimes.length > 0 ? Math.round(allReactionTimes.reduce((a, b) => a + b, 0) / allReactionTimes.length) : 0,
+        bestReactionTime: allReactionTimes.length > 0 ? Math.min(...allReactionTimes) : 0
+      },
+      duration,
+      timestamp: gameEndTime
+    }
+
+    await saveGameSession(sessionData)
+    navigateToNext()
+  }
+
+  const saveLevelData = () => {
+    const levelData = {
+      level,
+      levelName: LEVELS[level - 1].name,
+      reactionTimes: [...reactionTimes],
+      averageReactionTime: reactionTimes.length > 0 ? Math.round(reactionTimes.reduce((a, b) => a + b, 0) / reactionTimes.length) : 0,
+      errors,
+      accuracy: reactionTimes.length + errors > 0 ? Math.round((reactionTimes.length / (reactionTimes.length + errors)) * 100) : 0
+    }
+    
+    setAllLevelData(prev => [...prev, levelData])
+  }
 
   const showLevelIntro = (): void => {
     if (isProcessing) return
@@ -169,7 +282,7 @@ export default function ReactionTimeGame() {
     setGameState('react')
     setShowGreen(true)
     setStartTime(Date.now())
-    setMessage(level === 2 ? `Find the ${targetShape.toUpperCase()}!` : 'TAP NOW!')
+    setMessage(level === 2 ? 'TAP NOW!' : 'TAP NOW!')
   }
 
   const handleTap = (tappedShape?: string): void => {
@@ -186,6 +299,7 @@ export default function ReactionTimeGame() {
       
       timeouts.current.push(setTimeout(() => {
         if (errors + 1 >= 3) {
+          saveLevelData()
           navigateToNext()
         } else {
           clearAllTimeouts()
@@ -208,6 +322,7 @@ export default function ReactionTimeGame() {
       
       timeouts.current.push(setTimeout(() => {
         if (errors + 1 >= 3) {
+          saveLevelData()
           navigateToNext()
         } else {
           clearAllTimeouts()
@@ -229,6 +344,7 @@ export default function ReactionTimeGame() {
         
         timeouts.current.push(setTimeout(() => {
           if (errors + 1 >= 3) {
+            saveLevelData()
             navigateToNext()
           } else {
             clearAllTimeouts()
@@ -248,10 +364,12 @@ export default function ReactionTimeGame() {
       timeouts.current.push(setTimeout(() => {
         const nextTest = currentTest + 1
         if (nextTest >= LEVELS[level - 1].tests) {
+          saveLevelData()
+          
           if (level >= LEVELS.length) {
             setGameState('complete')
-            setMessage('All levels complete! Moving to next page...')
-            timeouts.current.push(setTimeout(() => navigateToNext(), 2000))
+            setMessage('All levels complete! Saving results...')
+            timeouts.current.push(setTimeout(() => finishGame(), 2000))
           } else {
             setLevel(prev => prev + 1)
             setCurrentTest(0)
@@ -289,36 +407,35 @@ export default function ReactionTimeGame() {
   }
 
   const renderShape = (shape: string, size: string = 'w-16 h-16'): React.ReactElement | null => {
-    const baseClasses = `${size} border-2 border-white mx-2 cursor-pointer hover:bg-white hover:bg-opacity-20 transition-colors`
+    const sizeValue = size.includes('20') ? 80 : size.includes('24') ? 96 : 64
+    const borderWidth = sizeValue / 16
     
     switch (shape) {
       case 'circle':
         return (
           <div 
-            className={`${baseClasses} rounded-full`}
+            className={`${size} bg-white rounded-full mx-2 cursor-pointer hover:opacity-80 transition-all transform hover:scale-105 shadow-lg`}
             onClick={() => handleTap(shape)}
           />
         )
       case 'square':
         return (
           <div 
-            className={`${baseClasses} rounded-none`}
+            className={`${size} bg-white rounded-lg mx-2 cursor-pointer hover:opacity-80 transition-all transform hover:scale-105 shadow-lg`}
             onClick={() => handleTap(shape)}
           />
         )
       case 'triangle':
         return (
           <div 
-            className={`${baseClasses} rounded-none`}
+            className="mx-2 cursor-pointer hover:opacity-80 transition-all transform hover:scale-105"
             style={{
-              clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)',
-              border: 'none',
-              backgroundColor: 'transparent',
-              borderTop: '32px solid white',
-              borderLeft: '32px solid transparent',
-              borderRight: '32px solid transparent',
-              width: '0',
-              height: '0'
+              width: 0,
+              height: 0,
+              borderLeft: `${sizeValue/2}px solid transparent`,
+              borderRight: `${sizeValue/2}px solid transparent`,
+              borderBottom: `${sizeValue}px solid white`,
+              filter: 'drop-shadow(0 4px 6px rgba(0, 0, 0, 0.3))'
             }}
             onClick={() => handleTap(shape)}
           />
@@ -399,6 +516,13 @@ export default function ReactionTimeGame() {
 
             {/* Main reaction area */}
             <div className="flex flex-col items-center justify-center">
+              {/* Placeholder for green light position */}
+              {(level === 1 || level === 3) && !showGreen && !showBlueDistractor && gameState === 'waiting' && (
+                <div className="w-32 h-32 border-4 border-dashed border-gray-600 rounded-full flex items-center justify-center">
+                  <span className="text-gray-500 text-sm">Ready</span>
+                </div>
+              )}
+              
               {/* Green light for basic reaction and inhibition */}
               {(level === 1 || level === 3) && showGreen && (
                 <div

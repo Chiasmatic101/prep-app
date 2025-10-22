@@ -1,13 +1,22 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import Link from 'next/link'
+import { ArrowLeft } from 'lucide-react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { useRouter } from 'next/navigation'
 import { auth, db } from '@/firebase/config'
-import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore'
 import { onAuthStateChanged } from 'firebase/auth'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, BarChart, Bar } from 'recharts'
+import { collection, getDocs } from 'firebase/firestore'
+import { getApp } from 'firebase/app'
+import {
+  ResponsiveContainer,
+  RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
+  BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip,
+  LineChart, Line
+} from 'recharts'
 
+/** ========= Types ========= */
 interface CognitiveScore {
   date: string
   displayDate: string
@@ -18,77 +27,164 @@ interface CognitiveScore {
   creativity: number
   timestamp?: any
 }
+type DomainKey = 'memory' | 'attention' | 'recall' | 'problemSolving' | 'creativity'
 
-interface DomainData {
-  domain: string
-  average: number
-  emoji: string
-  latest: number
+/** ========= Helpers ========= */
+const clamp01 = (v: any) => Math.max(0, Math.min(100, typeof v === 'number' ? v : 0))
+
+// Map UI selection -> actual data field (camelCase for problemSolving)
+const domainKeyMap: Record<string, DomainKey> = {
+  memory: 'memory',
+  attention: 'attention',
+  recall: 'recall',
+  problemsolving: 'problemSolving',
+  creativity: 'creativity',
 }
 
+const getDomainEmoji = (domain: string) => {
+  switch (domain) {
+    case 'Memory': return '🧠'
+    case 'Attention': return '👁️'
+    case 'Recall': return '💭'
+    case 'Problem Solving': return '🧩'
+    case 'Creativity': return '🎨'
+    default: return '📊'
+  }
+}
+
+const getDomainColor = (domain: string) => {
+  switch (domain.toLowerCase()) {
+    case 'memory': return '#8B5CF6'
+    case 'attention': return '#EC4899'
+    case 'recall': return '#06B6D4'
+    case 'problemsolving':
+    case 'problem solving': return '#10B981'
+    case 'creativity': return '#F59E0B'
+    default: return '#6B7280'
+  }
+}
+
+/** ========= Page ========= */
 export default function MyBrainPage() {
-  const [cognitiveData, setCognitiveData] = useState<CognitiveScore[]>([])
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const debug = searchParams?.get('debug') === '1'
+
+  const [userId, setUserId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [cognitiveData, setCognitiveData] = useState<CognitiveScore[]>([])
   const [selectedDomain, setSelectedDomain] = useState<string>('memory')
-  const [timeRange, setTimeRange] = useState<string>('30d')
-  const [userId, setUserId] = useState<string | null>(null)
-  const router = useRouter()
+
+  // Debug state
+  const [debugInfo, setDebugInfo] = useState<any>({
+    projectId: '',
+    userId: '',
+    triggerStatus: '',
+    fetchStatus: '',
+    snapshotSize: 0,
+    docIds: [] as string[],
+    error: '',
+  })
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
+    const unsub = onAuthStateChanged(auth, async (user) => {
+      try {
+        const projectId = getApp().options.projectId as string
+        setDebugInfo((d: any) => ({ ...d, projectId }))
+
+        if (!user) {
+          setDebugInfo((d: any) => ({ ...d, userId: '(none)', error: 'No auth user' }))
+          router.push('/auth')
+          return
+        }
+
         setUserId(user.uid)
+        setDebugInfo((d: any) => ({ ...d, userId: user.uid }))
+
+        // 1) Trigger the Cloud Function (non-blocking)
+        try {
+          const url = `https://us-central1-prepapp-fae61.cloudfunctions.net/testDailyScores?userId=${encodeURIComponent(
+            user.uid
+          )}`
+          const res = await fetch(url)
+          const txt = await res.text()
+          setDebugInfo((d: any) => ({
+            ...d,
+            triggerStatus: `HTTP ${res.status} ${res.statusText} • ${txt.slice(0, 140)}`
+          }))
+          console.log('[MyBrain] trigger response:', res.status, txt)
+        } catch (e: any) {
+          setDebugInfo((d: any) => ({ ...d, triggerStatus: `Trigger error: ${e?.message || e}` }))
+          console.warn('[MyBrain] trigger failed:', e)
+        }
+
+        // 2) Tiny pause to let serverTimestamp write land
+        await new Promise((r) => setTimeout(r, 600))
+
+        // 3) Fetch & render
         await fetchCognitiveScores(user.uid)
-      } else {
-        router.push('/auth')
+      } catch (e: any) {
+        console.error('[MyBrain] auth effect error:', e)
+        setDebugInfo((d: any) => ({ ...d, error: e?.message || String(e) }))
       }
     })
-
-    return () => unsubscribe()
+    return () => unsub()
   }, [router])
 
   const fetchCognitiveScores = async (uid: string) => {
     try {
       setLoading(true)
-      const scoresCollection = collection(db, 'users', uid, 'dailyCognitiveScores')
-      const scoresQuery = query(scoresCollection, orderBy('timestamp', 'desc'), limit(30))
-      const scoresSnapshot = await getDocs(scoresQuery)
-      
-      const scores: CognitiveScore[] = []
-      scoresSnapshot.forEach((doc) => {
-        const data = doc.data()
-        const date = doc.id // Document ID is the date (YYYY-MM-DD)
-        
-        scores.push({
+      setDebugInfo((d: any) => ({ ...d, fetchStatus: 'starting…' }))
+
+      // Option A: read full subcollection (no orderBy), sort by doc.id 'YYYY-MM-DD'
+      const colRef = collection(db, 'users', uid, 'dailyCognitiveScores')
+      const snap = await getDocs(colRef)
+
+      const docIds = snap.docs.map((d) => d.id)
+      setDebugInfo((d: any) => ({
+        ...d,
+        fetchStatus: 'got snapshot',
+        snapshotSize: snap.size,
+        docIds,
+      }))
+      console.log('[MyBrain] snapshot size:', snap.size, 'docIds:', docIds)
+
+      const rows: CognitiveScore[] = []
+      snap.forEach((docSnap) => {
+        const data = docSnap.data() as any
+        const date = docSnap.id // 'YYYY-MM-DD'
+        rows.push({
           date,
           displayDate: new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-          memory: data.memory || 0,
-          attention: data.attention || 0,
-          recall: data.recall || 0,
-          problemSolving: data.problemSolving || 0,
-          creativity: data.creativity || 0,
-          timestamp: data.timestamp
+          memory: clamp01(data.memory),
+          attention: clamp01(data.attention),
+          recall: clamp01(data.recall),
+          problemSolving: clamp01(data.problemSolving),
+          creativity: clamp01(data.creativity),
+          timestamp: data.timestamp ?? null,
         })
       })
-      
-      // Sort by date ascending for proper chart display
-      scores.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-      
-      setCognitiveData(scores)
-      setError('')
-    } catch (err) {
+
+      // Sort oldest -> newest lexicographically
+      rows.sort((a, b) => a.date.localeCompare(b.date))
+      const last30 = rows.slice(-30)
+
+      setCognitiveData(last30)
+      setError(last30.length ? '' : 'No cognitive data found')
+      setDebugInfo((d: any) => ({ ...d, fetchStatus: `prepared ${last30.length} rows` }))
+      console.log('[MyBrain] prepared rows:', last30.length, last30)
+    } catch (err: any) {
       console.error('Error fetching cognitive scores:', err)
       setError('Failed to load cognitive data')
+      setDebugInfo((d: any) => ({ ...d, fetchStatus: 'error', error: err?.message || String(err) }))
     } finally {
       setLoading(false)
     }
   }
 
-  // Get latest scores for radar chart
-  const getLatestScores = () => {
+  const latestScores = () => {
     if (!cognitiveData.length) return []
-    
     const latest = cognitiveData[cognitiveData.length - 1]
     return [
       { domain: 'Memory', score: latest.memory, fullMark: 100 },
@@ -99,71 +195,49 @@ export default function MyBrainPage() {
     ]
   }
 
-  // Get average scores
-  const getAverageScores = (): DomainData[] => {
+  const averageScores = () => {
     if (!cognitiveData.length) return []
-    
-    const domains = ['memory', 'attention', 'recall', 'problemSolving', 'creativity']
-    const domainNames = ['Memory', 'Attention', 'Recall', 'Problem Solving', 'Creativity']
-    
-    return domains.map((domain, index) => {
-      const avg = cognitiveData.reduce((sum, day) => sum + (day[domain as keyof CognitiveScore] as number || 0), 0) / cognitiveData.length
-      const latest = cognitiveData.length ? cognitiveData[cognitiveData.length - 1][domain as keyof CognitiveScore] as number : 0
-      
+    const domains: DomainKey[] = ['memory', 'attention', 'recall', 'problemSolving', 'creativity']
+    const names = ['Memory', 'Attention', 'Recall', 'Problem Solving', 'Creativity']
+
+    return domains.map((key, idx) => {
+      const avg = cognitiveData.reduce((sum, d) => sum + (d[key] ?? 0), 0) / cognitiveData.length
+      const latest = cognitiveData[cognitiveData.length - 1][key] ?? 0
       return {
-        domain: domainNames[index],
+        domain: names[idx],
         average: Math.round(avg),
-        latest: latest || 0,
-        emoji: getDomainEmoji(domainNames[index])
+        latest,
+        emoji: getDomainEmoji(names[idx]),
       }
     })
   }
 
-  const getDomainEmoji = (domain: string) => {
-    switch (domain) {
-      case 'Memory': return '🧠'
-      case 'Attention': return '👁️'
-      case 'Recall': return '💭'
-      case 'Problem Solving': return '🧩'
-      case 'Creativity': return '🎨'
-      default: return '📊'
-    }
-  }
+  /** ===== UI States ===== */
+ if (loading) {
+  return (
+    <main className="min-h-screen bg-gradient-to-br from-yellow-50 to-pink-100 px-6 py-6">
+      <div className="max-w-7xl mx-auto">
+        <div className="mb-6">
+          <Link
+            href="/Prep/AboutMe"
+            className="inline-flex items-center gap-2 text-purple-700 hover:text-purple-800 hover:underline"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to About Me
+          </Link>
+        </div>
 
-  const getDomainColor = (domain: string) => {
-    switch (domain.toLowerCase()) {
-      case 'memory': return '#8B5CF6' // Purple
-      case 'attention': return '#EC4899' // Pink
-      case 'recall': return '#06B6D4' // Cyan
-      case 'problemsolving': 
-      case 'problem solving': return '#10B981' // Green
-      case 'creativity': return '#F59E0B' // Orange
-      default: return '#6B7280'
-    }
-  }
+        <div className="flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4" />
+            <p className="text-purple-600 font-medium">Loading your cognitive data...</p>
+          </div>
+        </div>
+      </div>
+    </main>
+  )
+}
 
-  // Convert domain name for data key
-  const getDomainKey = (domain: string) => {
-    return domain.toLowerCase().replace(' ', '')
-  }
-
-  const latestScores = getLatestScores()
-  const averageScores = getAverageScores()
-
-  if (loading) {
-    return (
-      <main className="min-h-screen bg-gradient-to-br from-yellow-50 to-pink-100 flex items-center justify-center px-6">
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="text-center"
-        >
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
-          <p className="text-purple-600 font-medium">Loading your cognitive data...</p>
-        </motion.div>
-      </main>
-    )
-  }
 
   if (error || !cognitiveData.length) {
     return (
@@ -176,37 +250,52 @@ export default function MyBrainPage() {
           <div className="text-4xl mb-4">🧠</div>
           <h2 className="text-2xl font-bold text-purple-700 mb-4">No Cognitive Data Yet</h2>
           <p className="text-gray-700 mb-6">
-            {error || "Complete some cognitive assessments to see your brain performance data here."}
+            {error || 'Complete some cognitive assessments to see your brain performance data here.'}
           </p>
           <div className="space-y-3">
             <button
               onClick={() => router.push('/cognitive-assessment')}
-              className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 text-white px-6 py-3 rounded-full font-medium transition-all hover:scale-105 w-full"
+              className="bg-gradient-to-r from-pink-500 to-purple-600 text-white px-6 py-3 rounded-full font-medium w-full hover:scale-105 transition-all"
             >
               🧪 Start Assessment
             </button>
             <button
-              onClick={() => router.push('/about-me')}
-              className="bg-white/50 backdrop-blur-sm hover:bg-white/70 text-purple-700 px-6 py-3 rounded-full font-medium border border-purple-300 transition-all hover:scale-105 w-full"
+              onClick={() => router.push('/Prep/AboutMe')}
+              className="bg-white/50 text-purple-700 px-6 py-3 rounded-full font-medium border border-purple-300 w-full hover:scale-105 transition-all"
             >
               👤 Back to Profile
             </button>
           </div>
+
+          {/* Debug overlay even on empty */}
+          {debug && (
+            <div className="mt-6 p-4 bg-black/80 text-green-200 rounded-xl text-sm text-left">
+              <div className="font-semibold text-green-300 mb-2">Debug</div>
+              <pre className="whitespace-pre-wrap">
+{JSON.stringify(debugInfo, null, 2)}
+              </pre>
+            </div>
+          )}
         </motion.div>
       </main>
     )
   }
 
+  const latest = latestScores()
+  const averages = averageScores()
+  const selectedDataKey: DomainKey = domainKeyMap[selectedDomain] ?? 'memory'
+
   return (
     <main className="min-h-screen font-sans bg-gradient-to-br from-yellow-50 to-pink-100 text-gray-900 px-6 py-16">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="text-center mb-12"
-        >
+ <div className="mb-6">
+        <Link href="/Prep/AboutMe" className="inline-flex items-center gap-2 text-purple-700 hover:text-purple-800 hover:underline">
+          <ArrowLeft className="h-4 w-4" />
+          Back to About Me
+        </Link>
+      </div>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="text-center mb-12">
           <h1 className="text-4xl md:text-5xl font-extrabold mb-4">
             <span className="text-purple-700">My Brain</span> 🧠
           </h1>
@@ -215,42 +304,33 @@ export default function MyBrainPage() {
           </p>
         </motion.div>
 
-        {/* Current Performance Overview */}
+        {/* Snapshot (Radar + Averages Bar) */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.2 }}
           className="bg-white/40 backdrop-blur-sm rounded-[2rem] p-8 border border-white/40 shadow-lg mb-8"
         >
-          <h2 className="text-2xl font-bold text-purple-700 mb-6 text-center">
-            📊 Current Performance Snapshot
-          </h2>
+          <h2 className="text-2xl font-bold text-purple-700 mb-6 text-center">📊 Current Performance Snapshot</h2>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Radar Chart */}
+            {/* Radar */}
             <div className="bg-white/50 rounded-xl p-6">
               <h3 className="text-lg font-semibold text-gray-800 mb-4 text-center">Latest Scores</h3>
               <ResponsiveContainer width="100%" height={300}>
-                <RadarChart data={latestScores}>
+                <RadarChart data={latest}>
                   <PolarGrid />
                   <PolarAngleAxis dataKey="domain" />
                   <PolarRadiusAxis angle={90} domain={[0, 100]} />
-                  <Radar
-                    name="Score"
-                    dataKey="score"
-                    stroke="#8B5CF6"
-                    fill="#8B5CF6"
-                    fillOpacity={0.3}
-                    strokeWidth={2}
-                  />
+                  <Radar name="Score" dataKey="score" stroke="#8B5CF6" fill="#8B5CF6" fillOpacity={0.3} strokeWidth={2} />
                 </RadarChart>
               </ResponsiveContainer>
             </div>
 
-            {/* Average Scores Bar Chart */}
+            {/* Averages Bar */}
             <div className="bg-white/50 rounded-xl p-6">
               <h3 className="text-lg font-semibold text-gray-800 mb-4 text-center">Performance Averages</h3>
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={averageScores}>
+                <BarChart data={averages}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="domain" tick={{ fontSize: 12 }} />
                   <YAxis domain={[0, 100]} />
@@ -262,30 +342,33 @@ export default function MyBrainPage() {
           </div>
         </motion.div>
 
-        {/* Domain Performance Cards */}
+        {/* Domain tiles */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.4 }}
           className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8"
         >
-          {averageScores.map((item, index) => (
-            <div
-              key={item.domain}
-              className={`bg-white/40 backdrop-blur-sm rounded-xl p-4 border border-white/40 shadow-lg text-center cursor-pointer transition-all hover:scale-105 ${
-                selectedDomain === item.domain.toLowerCase().replace(' ', '') ? 'ring-2 ring-purple-500 bg-white/60' : ''
-              }`}
-              onClick={() => setSelectedDomain(item.domain.toLowerCase().replace(' ', ''))}
-            >
-              <div className="text-2xl mb-2">{item.emoji}</div>
-              <h3 className="font-semibold text-sm text-gray-800 mb-1">{item.domain}</h3>
-              <div className="text-lg font-bold text-purple-700">{item.latest}</div>
-              <div className="text-xs text-gray-600">latest • avg {item.average}</div>
-            </div>
-          ))}
+          {averages.map((item) => {
+            const key = item.domain.toLowerCase().replace(/\s+/g, '')
+            return (
+              <div
+                key={item.domain}
+                className={`bg-white/40 backdrop-blur-sm rounded-xl p-4 border border-white/40 shadow-lg text-center cursor-pointer transition-all hover:scale-105 ${
+                  selectedDomain === key ? 'ring-2 ring-purple-500 bg-white/60' : ''
+                }`}
+                onClick={() => setSelectedDomain(key)}
+              >
+                <div className="text-2xl mb-2">{item.emoji}</div>
+                <h3 className="font-semibold text-sm text-gray-800 mb-1">{item.domain}</h3>
+                <div className="text-lg font-bold text-purple-700">{item.latest}</div>
+                <div className="text-xs text-gray-600">latest • avg {item.average}</div>
+              </div>
+            )
+          })}
         </motion.div>
 
-        {/* Detailed Performance Chart */}
+        {/* Line chart */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
@@ -294,27 +377,24 @@ export default function MyBrainPage() {
         >
           <div className="flex flex-col md:flex-row justify-between items-center mb-6">
             <h2 className="text-2xl font-bold text-purple-700 mb-4 md:mb-0">
-              📈 {averageScores.find(s => s.domain.toLowerCase().replace(' ', '') === selectedDomain)?.domain || 'Memory'} Performance Over Time
+              📈 {averages.find((s) => s.domain.toLowerCase().replace(/\s+/g, '') === selectedDomain)?.domain || 'Memory'} Performance Over Time
             </h2>
             <div className="text-sm text-gray-600">
-              {cognitiveData.length} days • Last updated: {cognitiveData.length ? new Date(cognitiveData[cognitiveData.length - 1].date).toLocaleDateString() : 'N/A'}
+              {cognitiveData.length} days • Last date:{' '}
+              {cognitiveData.length ? new Date(cognitiveData[cognitiveData.length - 1].date).toLocaleDateString() : 'N/A'}
             </div>
           </div>
-
           <div className="bg-white/50 rounded-xl p-6">
             <ResponsiveContainer width="100%" height={400}>
               <LineChart data={cognitiveData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="displayDate" />
                 <YAxis domain={[0, 100]} />
-                <Tooltip 
-                  labelFormatter={(label) => `Date: ${label}`}
-                  formatter={(value, name) => [`${value}`, name]}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey={selectedDomain} 
-                  stroke={getDomainColor(selectedDomain)} 
+                <Tooltip labelFormatter={(label) => `Date: ${label}`} formatter={(value, name) => [`${value}`, name]} />
+                <Line
+                  type="monotone"
+                  dataKey={domainKeyMap[selectedDomain] ?? 'memory'}
+                  stroke={getDomainColor(selectedDomain)}
                   strokeWidth={3}
                   dot={{ fill: getDomainColor(selectedDomain), strokeWidth: 2, r: 4 }}
                   activeDot={{ r: 6 }}
@@ -324,68 +404,73 @@ export default function MyBrainPage() {
           </div>
         </motion.div>
 
-        {/* Insights Section */}
+        {/* Simple insights / actions */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.8 }}
           className="bg-gradient-to-r from-purple-100 to-pink-100 rounded-[2rem] p-8 border border-white/40 shadow-lg mb-8"
         >
-          <h2 className="text-2xl font-bold text-purple-700 mb-6 text-center">
-            💡 Cognitive Insights
-          </h2>
+          <h2 className="text-2xl font-bold text-purple-700 mb-6 text-center">💡 Cognitive Insights</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="text-center">
               <div className="text-3xl mb-2">🎯</div>
               <h3 className="font-semibold text-gray-800 mb-2">Best Performance</h3>
               <p className="text-sm text-gray-600">
-                Your {averageScores.length ? averageScores.reduce((best, current) => 
-                  current.average > best.average ? current : best
-                ).domain : 'Memory'} scores are consistently strong
+                Your {
+                  averages.reduce((best: any, cur: any) => (cur.average > best.average ? cur : best), averages[0]).domain
+                } scores are consistently strong.
               </p>
             </div>
             <div className="text-center">
               <div className="text-3xl mb-2">📈</div>
-              <h3 className="font-semibold text-gray-800 mb-2">Data Collection</h3>
-              <p className="text-sm text-gray-600">
-                {cognitiveData.length} days of cognitive performance data collected
-              </p>
+              <h3 className="font-semibold text-gray-800 mb-2">Data Collected</h3>
+              <p className="text-sm text-gray-600">{cognitiveData.length} days of cognitive performance data</p>
             </div>
             <div className="text-center">
               <div className="text-3xl mb-2">⚡</div>
               <h3 className="font-semibold text-gray-800 mb-2">Quick Tip</h3>
-              <p className="text-sm text-gray-600">
-                Take cognitive assessments during your peak hours for best results
-              </p>
+              <p className="text-sm text-gray-600">Take assessments during your peak hours for best results.</p>
             </div>
           </div>
         </motion.div>
 
-        {/* Action Buttons */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 1.0 }}
-          className="text-center space-y-4"
-        >
-          <div className="space-x-4">
-            <button
-              onClick={() => router.push('/cognitive-assessment')}
-              className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 text-white px-8 py-3 rounded-full font-semibold shadow-lg transition-all hover:scale-105"
-            >
-              🧪 Take Assessment
-            </button>
-            <button
-              onClick={() => router.push('/about-me')}
-              className="bg-white/50 backdrop-blur-sm hover:bg-white/70 text-purple-700 px-8 py-3 rounded-full font-semibold border border-purple-300 transition-all hover:scale-105"
-            >
-              👤 Back to Profile
-            </button>
+        {/* Debug overlay (open with ?debug=1) */}
+        {debug && (
+          <div className="mt-6 p-4 bg-black/80 text-green-200 rounded-xl text-sm overflow-auto">
+            <div className="font-semibold text-green-300 mb-2">Debug</div>
+            <pre className="whitespace-pre-wrap">
+{JSON.stringify(debugInfo, null, 2)}
+            </pre>
+            <div className="mt-3">
+              <div className="font-semibold text-green-300 mb-1">Loaded rows (last 30):</div>
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-left">
+                    <th className="pr-2">Date</th>
+                    <th className="pr-2">Mem</th>
+                    <th className="pr-2">Attn</th>
+                    <th className="pr-2">Recall</th>
+                    <th className="pr-2">ProbSolv</th>
+                    <th className="pr-2">Creat</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {cognitiveData.map((r) => (
+                    <tr key={r.date}>
+                      <td className="pr-2">{r.date}</td>
+                      <td className="pr-2">{r.memory}</td>
+                      <td className="pr-2">{r.attention}</td>
+                      <td className="pr-2">{r.recall}</td>
+                      <td className="pr-2">{r.problemSolving}</td>
+                      <td className="pr-2">{r.creativity}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-          <p className="text-gray-600 text-sm">
-            Regular cognitive assessments help track your mental performance and identify optimal learning times
-          </p>
-        </motion.div>
+        )}
       </div>
     </main>
   )

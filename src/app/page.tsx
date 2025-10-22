@@ -79,7 +79,7 @@ export default function Home() {
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-3xl md:text-4xl font-bold mb-6">What We Do</h2>
           <p className="text-lg text-gray-400 leading-relaxed">
-            At Chiasmatic, we combine AI, cognitive testing, and sleep science to uncover how daily habits shape the mind and body. Through structured, personalized experiments, we help individuals test and refine changes to their sleep, activity, and routines—revealing what truly enhances cognitive performance and recovery. It's precision health, powered by your own data.
+            THIS IS A TEST OF OUR NEW SITE.
           </p>
         </div>
       </section>
@@ -155,6 +155,43 @@ export default function Home() {
           </Link>
         </motion.div>
       </section>
+
+          {/* Amy Feature Section */}
+      <section className="bg-black py-28 px-6 text-center overflow-hidden relative">
+        {/* Glowing Background */}
+        <div className="absolute -z-10 top-1/2 left-1/2 w-[700px] h-[700px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-green-600 opacity-20 blur-[160px]" />
+
+        <motion.div
+          initial={{ opacity: 0, y: 40 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, ease: "easeOut" }}
+          viewport={{ once: true }}
+          className="max-w-4xl mx-auto"
+        >
+          <h2 className="text-4xl md:text-6xl font-extrabold leading-tight text-white mb-6">
+            Meet <span className="text-green-400">Amy</span>
+          </h2>
+          <h3 className="text-2xl md:text-3xl font-semibold text-gray-200 mb-6">
+            Harnessing Video Games to Predict Mental Health
+          </h3>
+          <p className="text-lg md:text-xl text-gray-300 mb-8">
+            Our newest platform leverages everyday video gameplay to uncover subtle patterns in cognition 
+            and behavior. These patterns can provide early indicators of neurological and mental health 
+            conditions—turning play into a powerful tool for detection and prevention.
+          </p>
+          <Link
+            href="/Amy"
+            className="inline-block px-8 py-3 bg-green-600 hover:bg-green-500 text-white rounded-xl text-lg transition"
+          >
+            Learn More
+          </Link>
+        </motion.div>
+      </section>
+
+
+
+
+
 
       {/* Prep Feature Section */}
       <section className="bg-black py-20 px-6">

@@ -1,6 +1,5 @@
 @import "tailwindcss";
-
-
+@import "shepherd.js/dist/css/shepherd.css";
 
 :root {
   --background: #ffffff;
@@ -26,3 +25,34 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* (Optional) Intro.js styles – safe to delete if not using Intro.js)
+.introjs-tooltip {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+}
+.introjs-button {
+  background: rgba(255,255,255,0.2);
+  border: 1px solid rgba(255,255,255,0.3);
+  color: white;
+  border-radius: 6px;
+}
+.introjs-nextbutton {
+  background: #10b981 !important;
+}
+*/
+
+/* Shepherd overrides: make the default tooltip invisible; we render our own via React portal */
+.shepherd-element {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: 0 !important;
+  z-index: 70;
+}
+.shepherd-content { padding: 0 !important; }
+.shepherd-arrow { display: none !important; }
+
+/* Keep overlay above most page UI (toasts are often z-50) */
+.shepherd-modal-overlay-container { z-index: 60; }

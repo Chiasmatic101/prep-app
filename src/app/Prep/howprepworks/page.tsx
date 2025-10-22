@@ -240,7 +240,13 @@ export default function PrepLandingPage() {
   )
 }
 
-const Insight = ({ icon, title, desc }) => (
+type InsightProps = {
+  icon: string
+  title: string
+  desc: string
+}
+
+const Insight = ({ icon, title, desc }: InsightProps) => (
   <div className="bg-white/30 backdrop-blur-sm rounded-xl p-6 border border-white/40 hover:bg-white/40 transition-transform transform hover:scale-105">
     <div className="text-2xl mb-2">{icon}</div>
     <h3 className="font-semibold text-lg mb-2 text-gray-800">{title}</h3>

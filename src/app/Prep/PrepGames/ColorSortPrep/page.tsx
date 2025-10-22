@@ -418,13 +418,11 @@ export default function ColorSortGame() {
         }
       }, { merge: true })
 
-      // Save detailed session data in separate collection
-      await addDoc(collection(db, 'gameSessionsDetailed'), {
-        userId,
-        gameType: 'colorSort',
-        ...sessionMetrics,
-        createdAt: new Date()
-      })
+      await addDoc(collection(db, 'users', userId, 'colorSortSessions'), {
+  gameType: 'colorSort',
+  ...sessionMetrics,
+  createdAt: new Date()
+})
 
       console.log('Color Sort session saved successfully')
     } catch (error) {
