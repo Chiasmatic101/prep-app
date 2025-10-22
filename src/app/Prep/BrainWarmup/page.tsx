@@ -64,11 +64,8 @@ const stages = [
   }
 ]
 
-interface BrainWarmupFlowProps {
-  onComplete?: () => void
-}
 
-export default function BrainWarmupFlow({ onComplete }: BrainWarmupFlowProps) {
+export default function BrainWarmupFlow() {
   const router = useRouter()
   const [currentStage, setCurrentStage] = useState(0)
   const [timeLeft, setTimeLeft] = useState(stages[0].duration)
@@ -115,7 +112,7 @@ export default function BrainWarmupFlow({ onComplete }: BrainWarmupFlowProps) {
         if (onComplete) {
           onComplete()
         } else {
-          router.push('/Prep/PrepGames/GameSelection')
+          router.push('/Prep/AboutMePage')
         }
       }, 2000)
     }
