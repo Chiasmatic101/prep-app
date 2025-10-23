@@ -789,7 +789,7 @@ setEnhancedSyncData(transformedEnhancedData);
         time: hour,
         label: `${hour}:00`,
         performance: Math.round(performance),
-        activity: activities[Math.floor(performance / 10) * 10] || 'Variable'
+        activity: activities[Math.floor(performance / 10) * 10 as keyof typeof activities] || 'Variable'
       })
     }
     return timeline
