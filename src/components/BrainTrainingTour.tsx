@@ -21,8 +21,8 @@ export default function BrainTrainingTour({
   run: boolean
   onComplete?: () => void
 }) {
-  const tourRef = useRef<Shepherd.Tour | null>(null)
-  const rootsRef = useRef<Map<string, Root>>(new Map())
+const tourRef = useRef<any>(null) 
+const rootsRef = useRef<Map<string, Root>>(new Map())
 
   // ✅ Define steps for the Brain Training tab
   const steps = useMemo<BrainStepMeta[]>(() => [
@@ -64,7 +64,7 @@ export default function BrainTrainingTour({
       return
     }
 
-    const tour = new Shepherd.Tour({
+    const tour = new (Shepherd as any).Tour({
       defaultStepOptions: {
         cancelIcon: { enabled: true },
         scrollTo: { behavior: 'smooth', block: 'center' },
