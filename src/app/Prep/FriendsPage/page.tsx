@@ -42,9 +42,11 @@ export default function FriendsPage() {
   
  
   
-  const handleAddEmail = () => {
-    setEmailAddresses([...emailAddresses, ''])
+  const handleRemoveEmail = (index: number) => {
+  if (emailAddresses.length > 1) {
+    setEmailAddresses(emailAddresses.filter((_, i) => i !== index))
   }
+}
 
   const handleRemoveEmail = (index) => {
     if (emailAddresses.length > 1) {
@@ -52,11 +54,11 @@ export default function FriendsPage() {
     }
   }
 
-  const handleEmailChange = (index, value) => {
-    const newEmails = [...emailAddresses]
-    newEmails[index] = value
-    setEmailAddresses(newEmails)
-  }
+  const handleEmailChange = (index: number, value: string) => {
+  const newEmails = [...emailAddresses]
+  newEmails[index] = value
+  setEmailAddresses(newEmails)
+}
 
   const handleCopyLink = async () => {
     try {
