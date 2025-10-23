@@ -20,7 +20,7 @@ import FriendsList from '../../../components/FriendsList'
 import { calculateEnhancedSyncScore, type CognitiveSession, type SleepEntry, type LifestyleFactor } from '../../../utils/enhancedsyncScoreCalculator'
 
 // Feedback and Tour imports
-import { useFeedbackAnalysis } from '../../../services/FeedbackDataService'
+import { useFeedbackAnalysis } from '../../../services/feedbackDataService'
 import LifestyleFeedbackComponent from '../../../components/LifestyleFeedbackComponent'
 import AppTour from '../../../components/ShepherdTour'
 import TrackDayTour from '../../../components/TrackDayTour'
