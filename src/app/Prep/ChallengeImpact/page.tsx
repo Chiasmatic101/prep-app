@@ -137,19 +137,28 @@ export default function ChallengeImpactPage() {
           const userDoc = await getDoc(doc(db, 'users', user.uid))
           const responses = userDoc.data()?.chronotype?.responses as QuizResponses
 
-          // --- 5. Compute enhanced sync scores (baseline vs during split) ---
-          const dailyData = sleepData.map(entry => {
-            const dailyCog = cognitiveData.filter(
-              s => new Date(s.timestamp).toISOString().split('T')[0] === entry.date
-            )
-            const results = calculateEnhancedSyncScore(responses, dailyCog, [entry])
-            return {
-              date: entry.date,
-              learning: results.syncScore,
-              sleep: entry.sleepQualityScore || results.sleepMetrics.averageQuality,
-              cognition: Object.values(results.adaptiveComponents.domainReliability).reduce((a, b) => a + b, 0)
-            }
-          })
+         // --- 5. Compute enhanced sync scores (baseline vs during split) ---
+const dailyData = await Promise.all(
+  sleepData.map(async (entry) => {
+    const dailyCog = cognitiveData.filter(
+      s => new Date(s.timestamp).toISOString().split('T')[0] === entry.date
+    )
+    const results = await calculateEnhancedSyncScore(
+      responses, 
+      dailyCog, 
+      [entry],
+      {}, // lifestyleData placeholder
+      {}, // challengeData placeholder
+      userDoc.data() // userData
+    )
+    return {
+      date: entry.date,
+      learning: results.syncScore,
+      sleep: entry.sleepQualityScore || results.sleepMetrics.averageQuality,
+      cognition: Object.values(results.adaptiveComponents.domainReliability).reduce((a, b) => a + b, 0)
+    }
+  })
+)
 
           // Split baseline vs challenge period (simple midpoint for now)
           const mid = Math.floor(dailyData.length / 2)
