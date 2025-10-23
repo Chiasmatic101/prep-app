@@ -39,9 +39,10 @@ export const ChallengeOverviewDashboard: React.FC<ChallengeOverviewProps> = ({
     const today = new Date().setHours(0, 0, 0, 0)
     
     // This is simplified - you'd want to check actual daily progress
-    if (challengeData.activeChallenges?.length > 0) {
-      streak = Math.max(...Object.values(challengeData.streaks || {})) as number
-    }
+ if (challengeData.activeChallenges?.length > 0) {
+  const streakValues = Object.values(challengeData.streaks || {}).filter((v): v is number => typeof v === 'number')
+  streak = streakValues.length > 0 ? Math.max(...streakValues) : 0
+}
 
     // Count by category
     const categories = {
