@@ -837,20 +837,23 @@ setEnhancedSyncData(transformedEnhancedData);
                 const mappedResponses = mapSurveyResponsesToQuizFormat(userData.chronotype.responses)
                 
                 const enhancedData = await calculateEnhancedSyncScore(
-                  mappedResponses,
-                  cognitiveData,
-                  sleepData,
-                  lifestyleData,
-                  challengeData,
-                  userData
-                )
+  mappedResponses,
+  cognitiveData,
+  sleepData,
+  lifestyleData,
+  challengeData,
+  userData
+)
 
-                enhancedData.learningTimeline = generateLearningTimeline(
-                  enhancedData.chronotype.chronotype,
-                  enhancedData.learningPhase
-                )
-                
-                setEnhancedSyncData(enhancedData)
+const transformedData = {
+  ...enhancedData,
+  learningTimeline: generateLearningTimeline(
+    enhancedData.chronotype.chronotype,
+    enhancedData.learningPhase
+  )
+}
+
+setEnhancedSyncData(transformedData)
               } catch (error) {
                 console.error('Error calculating enhanced sync score:', error)
                 const fallbackData = {
