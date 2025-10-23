@@ -1704,7 +1704,6 @@ setEnhancedSyncData(transformedData)
                         <ActiveChallengesStrip
                           activeChallenges={[challenge]}
                           onLogProgress={handleLogProgress}
-                          onViewAllChallenges={() => router.push('/Prep/Challenges')}
                         />
 
                         {/* Specialized Trackers */}
