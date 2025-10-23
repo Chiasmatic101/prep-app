@@ -153,7 +153,7 @@ export const CognitiveProfileDashboard = () => {
       {/* Rest of your dashboard... */}
       {/* Domain Scores Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {Object.entries(profile.domains).map(([domain, score]) => (
+       {Object.entries(profile.domains).map(([domain, score]: [string, any]) => (
           <div key={domain} className="bg-white rounded-lg p-4 shadow">
             <div className="flex justify-between items-start mb-2">
               <h3 className="font-semibold capitalize">{domain.replace(/([A-Z])/g, ' $1')}</h3>
