@@ -15,8 +15,8 @@ export default function InitDB() {
       await initializeFirestore()
       setStatus('✅ Success! Collections created in Firestore')
     } catch (error) {
-      setStatus(`❌ Error: ${error.message}`)
-    } finally {
+  setStatus(`❌ Error: ${error instanceof Error ? error.message : String(error)}`)
+} finally {
       setLoading(false)
     }
   }
