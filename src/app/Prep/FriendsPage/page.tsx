@@ -40,7 +40,9 @@ export default function FriendsPage() {
     generateInviteLink()
   }, [])
   
- 
+ const handleAddEmail = () => {
+  setEmailAddresses([...emailAddresses, ''])
+}
   
   const handleRemoveEmail = (index: number) => {
   if (emailAddresses.length > 1) {
