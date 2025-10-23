@@ -1434,7 +1434,7 @@ const BrainBattle: React.FC = () => {
             })
 
             if (targetPlatform) {
-              const platform = targetPlatform as Platform
+              targetPlatform = targetPlatform as Platform
               const platformCenterX = targetPlatform.x + targetPlatform.width / 2
               const horizontalOffset = platformCenterX - p.x
               const platformAbove = targetPlatform.y < p.y - 20
