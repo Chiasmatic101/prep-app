@@ -20,7 +20,7 @@ import FriendsList from '../../../components/FriendsList'
 import { calculateEnhancedSyncScore, type CognitiveSession, type SleepEntry, type LifestyleFactor } from '../../../utils/enhancedsyncScoreCalculator'
 
 // Feedback and Tour imports
-import { useFeedbackAnalysis } from '../../../services/feedbackDataService'
+import { useFeedbackAnalysis } from '../../../services/FeedbackDataService'
 import LifestyleFeedbackComponent from '../../../components/LifestyleFeedbackComponent'
 import AppTour from '../../../components/ShepherdTour'
 import TrackDayTour from '../../../components/TrackDayTour'
@@ -140,12 +140,12 @@ interface SleepEntryForm {
 
 // Survey response mapping function
 const mapSurveyResponsesToQuizFormat = (surveyResponses: Record<string, string>) => {
-  const mapNaturalWake = (response: string): 'Before 8 AM' | '8-10 AM' | 'After 10 AM' => {
+  const mapNaturalWake = (response: string): 'Before 8 AM' | '8–10 Am' | 'After 10 AM' => {
     if (response === 'Before 8 AM') return 'Before 8 AM'
-    if (response === '8-10 AM') return '8-10 AM'
+    if (response === '8–10 Am') return '8–10 Am'
     if (response === 'After 10 AM') return 'After 10 AM'
-    if (response.includes('Before 6') || response.includes('6-7') || response.includes('6-8')) return 'Before 8 AM'
-    if (response.includes('7-8') || response.includes('8-10')) return '8-10 AM'
+    if (response.includes('Before 6') || response.includes('6–7') || response.includes('6–8')) return 'Before 8 AM'
+    if (response.includes('7–8') || response.includes('8-10')) return '8–10 Am'
     return 'After 10 AM'
   }
 
@@ -164,11 +164,11 @@ const mapSurveyResponsesToQuizFormat = (surveyResponses: Record<string, string>)
     return 'Midday'
   }
 
-  const mapSchoolStart = (response: string): 'Before 7:30 AM' | '7:30-8:00 AM' | 'After 8:00 AM' => {
+  const mapSchoolStart = (response: string): 'Before 7:30 AM' | '7:30–8:00 AM' | 'After 8:00 AM' => {
     if (response === 'Before 7:30 AM' || response.includes('Before 7')) return 'Before 7:30 AM'
-    if (response === '7:30-8:00 AM' || response.includes('7:30-8:00') || response.includes('7-8')) return '7:30-8:00 AM'
-    if (response === 'After 8:00 AM' || response.includes('After 8') || response.includes('8-9') || response.includes('After 9')) return 'After 8:00 AM'
-    return '7:30-8:00 AM'
+    if (response === '7:30–8:00 AM' || response.includes('7:30-8:00') || response.includes('7–8')) return '7:30–8:00 AM'
+    if (response === 'After 8:00 AM' || response.includes('After 8') || response.includes('8–9') || response.includes('After 9')) return 'After 8:00 AM'
+    return '7:30–8:00 AM'
   }
 
   const mapHomeworkTime = (response: string): 'Right after school' | 'After dinner' | 'Late at night' | 'Depends' => {
@@ -185,12 +185,12 @@ const mapSurveyResponsesToQuizFormat = (surveyResponses: Record<string, string>)
     return 'After dinner'
   }
 
-  const mapWakeSchool = (response: string): 'Before 6 AM' | '6-6:59 AM' | '7-7:59 AM' | '8 AM or later' => {
+  const mapWakeSchool = (response: string): 'Before 6 AM' | '6–6:59 AM' | '7–7:59 AM' | '8 AM or later' => {
     if (response === 'Before 6 AM' || response.includes('Before 6')) return 'Before 6 AM'
-    if (response === '6-6:59 AM' || response.includes('6-6:59')) return '6-6:59 AM'
-    if (response === '7-7:59 AM' || response.includes('7-7:59')) return '7-7:59 AM'
+    if (response === '6–6:59 AM' || response.includes('6-6:59')) return '6–6:59 AM'
+    if (response === '7–7:59 AM' || response.includes('7-7:59')) return '7–7:59 AM'
     if (response === '8 AM or later' || response.includes('8 AM or later')) return '8 AM or later'
-    return '7-7:59 AM'
+    return '7–7:59 AM'
   }
 
   const mapWakeFeel = (response: string): 'Wide awake' | 'A bit slow' | 'Super groggy' => {
@@ -200,28 +200,28 @@ const mapSurveyResponsesToQuizFormat = (surveyResponses: Record<string, string>)
     return 'A bit slow'
   }
 
-  const mapBedWeekend = (response: string): 'Before 10 PM' | '10 PM-Midnight' | 'After Midnight' => {
+  const mapBedWeekend = (response: string): 'Before 10 PM' | '10 PM–Midnight' | 'After Midnight' => {
     if (response === 'Before 10 PM' || response.includes('Before 10')) return 'Before 10 PM'
-    if (response === '10 PM-Midnight' || response.includes('10 PM-Midnight') || response.includes('10-11')) return '10 PM-Midnight'
+    if (response === '10 PM–Midnight' || response.includes('10 PM–Midnight') || response.includes('10–11')) return '10 PM–Midnight'
     if (response === 'After Midnight' || response.includes('After Midnight') || response.includes('After 11')) return 'After Midnight'
-    return '10 PM-Midnight'
+    return '10 PM–Midnight'
   }
 
-  const mapHomeTime = (response: string): 'Before 3:30 PM' | '3:30-4:30 PM' | 'After 4:30 PM' => {
+  const mapHomeTime = (response: string): 'Before 3:30 PM' | '3:30–4:30 PM' | 'After 4:30 PM' => {
     if (response === 'Before 3:30 PM' || response.includes('Before 3')) return 'Before 3:30 PM'
-    if (response === '3:30-4:30 PM' || response.includes('3:30-4:30') || response.includes('3-4')) return '3:30-4:30 PM'
+    if (response === '3:30–4:30 PM' || response.includes('3:30–4:30') || response.includes('3–4')) return '3:30–4:30 PM'
     if (response === 'After 4:30 PM' || response.includes('After 4:30') || response.includes('After 4')) return 'After 4:30 PM'
-    return '3:30-4:30 PM'
+    return '3:30–4:30 PM'
   }
 
-  const mapExtraTime = (response: string): 'Before 4 PM' | '4-6 PM' | 'After 6 PM' | 'Varies' => {
+  const mapExtraTime = (response: string): 'Before 4 PM' | '4–6 PM' | 'After 6 PM' | 'Varies' => {
     if (response === 'Before 4 PM') return 'Before 4 PM'
-    if (response === '4-6 PM') return '4-6 PM'
+    if (response === '4–6 PM') return '4–6 PM'
     if (response === 'After 6 PM') return 'After 6 PM'
     if (response === 'Varies') return 'Varies'
     
     const afterSchoolAcademics = surveyResponses.afterSchoolAcademics || surveyResponses.extras
-    if (afterSchoolAcademics === 'Yes, every day') return 'After 6 PM'
+    if (afterSchoolAcademics === 'Yes, every day' || afterSchoolAcademics !== 'None') return 'After 6 PM'
     if (afterSchoolAcademics === 'Yes, occasionally') return 'Varies'
     
     return 'Varies'
@@ -255,11 +255,11 @@ const mapSurveyResponsesToQuizFormat = (surveyResponses: Record<string, string>)
     extras: mapExtras(surveyResponses.extras || ''),
     weekendWake: surveyResponses.weekendWake || 'After 10 AM',
     bestStudyTime: surveyResponses.bestStudyTime || 'Afternoon',
-    concentrationTime: surveyResponses.concentrationTime || 'Afternoon (12 PM-5 PM)',
+    concentrationTime: surveyResponses.concentrationTime || 'Afternoon (12 PM–5 PM)',
     memoryTime: surveyResponses.memoryTime || 'Morning',
-    homeworkDuration: surveyResponses.homeworkDuration || '1-2 hours',
-    studyBreaks: surveyResponses.studyBreaks || 'Every 45-60 minutes',
-    mealTimes: surveyResponses.mealTimes || '6-7 PM',
+    homeworkDuration: surveyResponses.homeworkDuration || '1–2 hours',
+    studyBreaks: surveyResponses.studyBreaks || 'Every 45–60 minutes',
+    mealTimes: surveyResponses.mealTimes || '6–7 PM',
     screenTime: surveyResponses.screenTime || '1 hour before bed'
   }
 }
@@ -1950,7 +1950,3 @@ export default function TeenFriendlyAboutMe() {
     </>
   )
 }
-
-
-
-
