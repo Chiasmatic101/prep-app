@@ -23,7 +23,7 @@ export default function AppTour({
   run: boolean
   onComplete?: () => void
 }) {
-  const tourRef = useRef<Shepherd.Tour | null>(null)
+  const tourRef = useRef<any>(null)
   const rootsRef = useRef<Map<string, Root>>(new Map())
 
   // Define your steps here (selectors must exist on the page)
