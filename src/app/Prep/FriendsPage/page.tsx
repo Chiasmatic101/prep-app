@@ -48,12 +48,6 @@ export default function FriendsPage() {
   }
 }
 
-  const handleRemoveEmail = (index) => {
-    if (emailAddresses.length > 1) {
-      setEmailAddresses(emailAddresses.filter((_, i) => i !== index))
-    }
-  }
-
   const handleEmailChange = (index: number, value: string) => {
   const newEmails = [...emailAddresses]
   newEmails[index] = value
