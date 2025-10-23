@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
     console.error('Error sending invites:', error)
     return NextResponse.json({ 
       error: 'Failed to send invites',
-      details: error.message 
+    details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 })
   }
 }
