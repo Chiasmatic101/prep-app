@@ -233,7 +233,7 @@ export const BedroomEnvironmentSetup: React.FC<SleepRoutineTrackerProps> = ({
         {environmentChecks.map((check) => (
           <div key={check.key} className="bg-white rounded-lg p-4 border border-gray-200">
             <button
-              onClick={() => setChecklist(prev => ({ ...prev, [check.key]: !prev[check.key] }))}
+             onClick={() => setChecklist(prev => ({ ...prev, [check.key]: !prev[check.key as keyof typeof prev] }))}
               className="w-full"
             >
               <div className="flex items-start gap-3 mb-2">
