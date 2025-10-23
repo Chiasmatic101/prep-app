@@ -108,13 +108,9 @@ export default function BrainWarmupFlow() {
       }, 2000) // 2 second transition
     } else {
       // Flow complete
-      setTimeout(() => {
-        if (onComplete) {
-          onComplete()
-        } else {
-          router.push('/Prep/AboutMePage')
-        }
-      }, 2000)
+setTimeout(() => {
+  router.push('/Prep/AboutMePage')
+}, 2000)
     }
   }
 
