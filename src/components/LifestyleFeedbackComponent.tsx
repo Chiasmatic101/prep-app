@@ -313,7 +313,7 @@ const LifestyleFeedbackComponent: React.FC<LifestyleFeedbackComponentProps> = ({
               {/* Action Button */}
               {rec.suggestedChallenge && (
                 <button
-                  onClick={() => onStartChallenge(rec.suggestedChallenge)}
+                  onClick={() => onStartChallenge(rec.suggestedChallenge!)}
                   className={`w-full bg-gradient-to-r ${getCategoryColor(rec.category)} hover:opacity-90 text-white py-3 px-4 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 group`}
                 >
                   <Star className="w-4 h-4" />
