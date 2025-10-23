@@ -147,7 +147,7 @@ const dailyData = await Promise.all(
       responses, 
       dailyCog, 
       [entry],
-      {}, // lifestyleData placeholder
+      [], // lifestyleData placeholder
       {}, // challengeData placeholder
       userDoc.data() // userData
     )
