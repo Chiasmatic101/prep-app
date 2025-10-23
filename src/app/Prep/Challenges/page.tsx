@@ -924,10 +924,10 @@ export default function ShiftingChallengesPage() {
       setError('') // Clear any previous errors
       
       console.log('Challenge started successfully')
-    } catch (error) {
-      console.error('Detailed error starting challenge:', error)
-      setError(`Failed to start challenge: ${error.message || 'Unknown error'}`)
-    }
+   } catch (error) {
+  console.error('Detailed error starting challenge:', error)
+  setError(`Failed to start challenge: ${error instanceof Error ? error.message : 'Unknown error'}`)
+}
   }
 
   const handleLogProgress = async (challengeId: string, success: boolean, notes?: string) => {
