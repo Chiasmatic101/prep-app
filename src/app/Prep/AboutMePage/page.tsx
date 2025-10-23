@@ -140,12 +140,12 @@ interface SleepEntryForm {
 
 // Survey response mapping function
 const mapSurveyResponsesToQuizFormat = (surveyResponses: Record<string, string>) => {
-  const mapNaturalWake = (response: string): 'Before 8 AM' | '8–10 Am' | 'After 10 AM' => {
+  const mapNaturalWake = (response: string): 'Before 8 AM' | '8–10 AM' | 'After 10 AM' => {
     if (response === 'Before 8 AM') return 'Before 8 AM'
-    if (response === '8–10 Am') return '8–10 Am'
+    if (response === '8–10 AM') return '8–10 AM'
     if (response === 'After 10 AM') return 'After 10 AM'
     if (response.includes('Before 6') || response.includes('6–7') || response.includes('6–8')) return 'Before 8 AM'
-    if (response.includes('7–8') || response.includes('8-10')) return '8–10 Am'
+    if (response.includes('7–8') || response.includes('8-10')) return '8–10 AM'
     return 'After 10 AM'
   }
 
