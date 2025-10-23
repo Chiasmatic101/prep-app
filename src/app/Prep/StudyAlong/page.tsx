@@ -59,6 +59,7 @@ function GalaxyAnimation() {
     }
 
     function draw() {
+      if (!ctx) return;
       ctx.fillStyle = "rgba(0,0,0,0.2)";
       ctx.fillRect(0, 0, w, h);
 
