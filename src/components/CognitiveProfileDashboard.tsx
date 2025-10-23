@@ -243,25 +243,25 @@ export const CognitiveProfileDashboard = () => {
       {/* Game Contributions */}
       <div className="bg-white rounded-lg p-6 shadow">
         <h2 className="text-xl font-bold mb-4">Game Contributions</h2>
-        {Object.entries(profile.contributions).map(([domain, games]: [string, any[]]) => (
-          games.length > 0 && (
-            <div key={domain} className="mb-4">
-              <h3 className="font-semibold capitalize mb-2">
-                {domain.replace(/([A-Z])/g, ' $1')}
-              </h3>
-              <div className="space-y-1">
-                {games.map((game, idx) => (
-                  <div key={idx} className="flex justify-between text-sm">
-                    <span>{game.gameType}</span>
-                    <span className="text-gray-500">
-                      {game.sessionCount} sessions • {Math.round(game.reliability * 100)}% reliability
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )
+       {(Object.entries(profile.contributions) as [string, any[]][]).map(([domain, games]) => (
+  games.length > 0 && (
+    <div key={domain} className="mb-4">
+      <h3 className="font-semibold capitalize mb-2">
+        {domain.replace(/([A-Z])/g, ' $1')}
+      </h3>
+      <div className="space-y-1">
+        {games.map((game, idx) => (
+          <div key={idx} className="flex justify-between text-sm">
+            <span>{game.gameType}</span>
+            <span className="text-gray-500">
+              {game.sessionCount} sessions • {Math.round(game.reliability * 100)}% reliability
+            </span>
+          </div>
         ))}
+      </div>
+    </div>
+  )
+))}
       </div>
     </div>
   );
