@@ -654,8 +654,21 @@ export default function TeenFriendlyAboutMe() {
             userData
           )
 
-          setEnhancedSyncData(enhancedData)
+          // After:
+const transformedEnhancedData = {
+  ...enhancedData,
+  learningTimeline: enhancedData.learningTimeline.map((hour) => ({
+    time: hour,
+    label: `${hour}:00`,
+    performance: enhancedData.optimalLearningWindows.some(window => 
+      hour >= window.start && hour <= window.end
+    ) ? 85 : 60,
+    activity: hour < 12 ? 'Morning study' : hour < 18 ? 'Afternoon study' : 'Evening study'
+  }))
+};
 
+setEnhancedSyncData(transformedEnhancedData);
+          
           try {
             if (auth.currentUser) {
               const userId = auth.currentUser.uid
