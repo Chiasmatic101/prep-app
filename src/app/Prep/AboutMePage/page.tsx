@@ -221,7 +221,7 @@ const mapSurveyResponsesToQuizFormat = (surveyResponses: Record<string, string>)
     if (response === 'Varies') return 'Varies'
     
     const afterSchoolAcademics = surveyResponses.afterSchoolAcademics || surveyResponses.extras
-    if (afterSchoolAcademics === 'Yes, every day' || afterSchoolAcademics !== 'None') return 'After 6 PM'
+    if (afterSchoolAcademics === 'Yes, every day') return 'After 6 PM'
     if (afterSchoolAcademics === 'Yes, occasionally') return 'Varies'
     
     return 'Varies'
