@@ -243,9 +243,8 @@ export const CognitiveProfileDashboard = () => {
       {/* Game Contributions */}
       <div className="bg-white rounded-lg p-6 shadow">
         <h2 className="text-xl font-bold mb-4">Game Contributions</h2>
-    {Object.entries(profile.contributions).map(([domain, gamesUnknown]) => {
-  const games = gamesUnknown as any[]
-  return games.length > 0 && (
+    {(Object.entries(profile.contributions) as [string, any[]][]).map(([domain, games]) => (
+  games.length > 0 && (
     <div key={domain} className="mb-4">
       <h3 className="font-semibold capitalize mb-2">
         {domain.replace(/([A-Z])/g, ' $1')}
@@ -262,7 +261,7 @@ export const CognitiveProfileDashboard = () => {
       </div>
     </div>
   )
-})}
+))}
       </div>
     </div>
   );
