@@ -4,7 +4,7 @@
 import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { DimDownTracker, BedroomEnvironmentSetup, SleepCoolDownRoutine } from './SleepHygieneTracking'
-import { ScreensOff30Tracker, SoundscapeTracker } from './ScreenTimeTracker'
+import { ScreensOff30Tracker } from './ScreenTimeTracker'
 import { ConsistentMealWindowsTracker, SmartCaffeineWindowTracker, StudySnackSwapTracker, HydrationHabitTracker } from './MealTimingTracker'
 import { CognitiveProgressDashboard } from './CognitiveGameTracker'
 import { ShiftingChallengeSetup } from './ChallengeSetupWizard'
@@ -37,8 +37,8 @@ export const InteractiveChallengeModal: React.FC<InteractiveChallengeModalProps>
         return <SleepCoolDownRoutine challengeId={challengeId} onComplete={onComplete} />
       case 'screens-off-30':
         return <ScreensOff30Tracker challengeId={challengeId} onComplete={onComplete} />
-      case 'soundscape-snooze':
-        return <SoundscapeTracker challengeId={challengeId} onComplete={onComplete} />
+      //case 'soundscape-snooze':
+       // return <SoundscapeTracker challengeId={challengeId} onComplete={onComplete} />
       
       // Diet & Caffeine
       case 'consistent-meal-windows':
