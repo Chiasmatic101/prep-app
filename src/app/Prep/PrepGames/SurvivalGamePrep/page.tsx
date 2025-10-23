@@ -555,7 +555,7 @@ function GameProvider({ children }: { children: React.ReactNode }) {
             if (newState.rescueProgress >= 100 || rescueChance < (newState.dayNumber * 3)) {
               newState.gameOver = true
               newState.gameOverReason = `After ${newState.dayNumber} days, a search plane spots your signal fire! A helicopter arrives within hours. You're going home!`
-              achievements[6].unlocked = true
+              newState.achievements[6].unlocked = true
               message = '🚁 In the distance, you hear the sound of helicopter blades! Your signal fire worked!'
             } else {
               message += ` Your signal fire burns through the night. Rescue progress: ${Math.min(100, newState.rescueProgress)}%`
