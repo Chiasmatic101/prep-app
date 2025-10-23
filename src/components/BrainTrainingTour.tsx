@@ -92,7 +92,7 @@ const rootsRef = useRef<Map<string, Root>>(new Map())
 
       root.render(
         <div className="flex items-start gap-3">
-          <TourMascot emotion="happy" size="lg" pointDirection={meta.on} />
+         <TourMascot emotion="happy" size="lg" />
           <SpeechBubble position="right" color={meta.color || 'purple'} enterFrom={enterFrom}>
             <div className="space-y-1">
               {id === steps[0].id && (
