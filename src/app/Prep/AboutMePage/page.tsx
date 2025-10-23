@@ -1333,7 +1333,7 @@ setEnhancedSyncData(transformedData)
                           className="mt-6"
                         >
                           <LifestyleFeedbackComponent
-                            feedbackData={feedbackData}
+                            feedbackData={feedbackData ?? undefined}
                             onStartChallenge={(challengeId) => {
                               window.location.href = `/Prep/Challenges?start=${challengeId}`
                             }}
