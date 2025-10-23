@@ -660,9 +660,10 @@ const transformedEnhancedData = {
   learningTimeline: enhancedData.learningTimeline.map((hour) => ({
     time: hour,
     label: `${hour}:00`,
-    performance: enhancedData.optimalLearningWindows.some(window => 
-      hour >= window.start && hour <= window.end
-    ) ? 85 : 60,
+    performance: hour >= 9 && hour <= 11 ? 90 : // Peak morning
+                 hour >= 14 && hour <= 16 ? 85 : // Good afternoon
+                 hour >= 19 && hour <= 21 ? 75 : // Evening
+                 60, // Other times
     activity: hour < 12 ? 'Morning study' : hour < 18 ? 'Afternoon study' : 'Evening study'
   }))
 };
