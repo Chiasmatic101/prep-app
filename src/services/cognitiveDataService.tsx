@@ -234,7 +234,7 @@ const WorkingMemoryTest = ({
     showSequence(newSequence)
   }
   
-  const showSequence = async (seq) => {
+  const showSequence = async (seq: number[]) => {
     for (let i = 0; i < seq.length; i++) {
       setCurrentNumber(seq[i])
       await new Promise(resolve => setTimeout(resolve, 1000))
