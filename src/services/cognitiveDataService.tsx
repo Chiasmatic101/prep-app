@@ -3,7 +3,19 @@
 import React, { useState, useEffect, useRef } from 'react'
 
 // Mock game components for the assessment
-const ProcessingSpeedTest = ({ onComplete, timeLeft, isActive, startTimer, onDataUpdate }) => {
+const ProcessingSpeedTest = ({ 
+  onComplete, 
+  timeLeft, 
+  isActive, 
+  startTimer, 
+  onDataUpdate 
+}: { 
+  onComplete: () => void;
+  timeLeft: number;
+  isActive: boolean;
+  startTimer: () => void;
+  onDataUpdate: (data: any) => void;
+}) => {
   const [score, setScore] = useState(0)
   const [currentSymbol, setCurrentSymbol] = useState('')
   const [targetSymbol, setTargetSymbol] = useState('')
@@ -159,7 +171,19 @@ const ProcessingSpeedTest = ({ onComplete, timeLeft, isActive, startTimer, onDat
   )
 }
 
-const WorkingMemoryTest = ({ onComplete, timeLeft, isActive, startTimer, onDataUpdate }) => {
+const WorkingMemoryTest = ({ 
+  onComplete, 
+  timeLeft, 
+  isActive, 
+  startTimer, 
+  onDataUpdate 
+}: { 
+  onComplete: () => void;
+  timeLeft: number;
+  isActive: boolean;
+  startTimer: () => void;
+  onDataUpdate: (data: any) => void;
+}) => {
   const [sequence, setSequence] = useState([])
   const [userInput, setUserInput] = useState([])
   const [currentNumber, setCurrentNumber] = useState(null)
@@ -323,7 +347,19 @@ const WorkingMemoryTest = ({ onComplete, timeLeft, isActive, startTimer, onDataU
   )
 }
 
-const AttentionTest = ({ onComplete, timeLeft, isActive, startTimer }) => {
+const AttentionTest = ({ 
+  onComplete, 
+  timeLeft, 
+  isActive, 
+  startTimer, 
+  onDataUpdate 
+}: { 
+  onComplete: () => void;
+  timeLeft: number;
+  isActive: boolean;
+  startTimer: () => void;
+  onDataUpdate: (data: any) => void;
+}) => {
   const [grid, setGrid] = useState([])
   const [targetPositions, setTargetPositions] = useState(new Set())
   const [selectedPositions, setSelectedPositions] = useState(new Set())
