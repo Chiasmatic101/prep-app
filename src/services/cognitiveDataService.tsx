@@ -401,7 +401,7 @@ const AttentionTest = ({
     }, 2000)
   }
   
-  const handleCellClick = (index) => {
+ const handleCellClick = (index: number) => {
     if (phase !== 'recall') return
     
     const newSelected = new Set(selectedPositions)
