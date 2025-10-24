@@ -21,7 +21,7 @@ export default function TrackDayTour({
   run: boolean
   onComplete?: () => void
 }) {
-  const tourRef = useRef<Shepherd.Tour | null>(null)
+  const tourRef = useRef<any>(null)
   const rootsRef = useRef<Map<string, Root>>(new Map())
 
   // ✅ Define steps for Track My Day here
