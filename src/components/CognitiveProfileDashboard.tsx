@@ -1,7 +1,7 @@
 
 
 import React, { useState } from 'react';
-import { useCognitiveProfile } from '../hooks/useCognitiveProflie';
+//import { useCognitiveProfile } from '../hooks/useCognitiveProflie';
 import { Brain, TrendingUp, Award, Clock, RefreshCw } from 'lucide-react';
 import { auth } from '@/firebase/config';
 import { onAuthStateChanged } from 'firebase/auth';
