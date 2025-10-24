@@ -193,7 +193,7 @@ const WorkingMemoryTest = ({
   const [showInstructions, setShowInstructions] = useState(true)
   const [testStarted, setTestStarted] = useState(false)
   const [attempts, setAttempts] = useState(0)
-  const [reactionTimes, setReactionTimes] = useState([])
+  const [reactionTimes, setReactionTimes] = useState<number[]>([])
   const [sequenceStartTime, setSequenceStartTime] = useState(Date.now())
   
   useEffect(() => {
