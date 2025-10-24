@@ -23,7 +23,7 @@ const ProcessingSpeedTest = ({
   const [falseAlarms, setFalseAlarms] = useState(0)
   const [showInstructions, setShowInstructions] = useState(true)
   const [testStarted, setTestStarted] = useState(false)
-  const [reactionTimes, setReactionTimes] = useState([])
+  const [reactionTimes, setReactionTimes] = useState<number[]>([])
   const [levelStartTime, setLevelStartTime] = useState(Date.now())
   
   const symbols = ['■', '★', '●', '◆', '▲', '⬟']
