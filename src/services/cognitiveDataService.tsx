@@ -245,7 +245,7 @@ const WorkingMemoryTest = ({
     setSequenceStartTime(Date.now()) // Reset timer for input phase
   }
   
-  const handleNumberClick = (num) => {
+  const handleNumberClick = (num: number) => {
     if (phase !== 'input') return
     
     const clickTime = Date.now()
