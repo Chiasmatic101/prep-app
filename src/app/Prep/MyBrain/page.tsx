@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -64,8 +64,8 @@ const getDomainColor = (domain: string) => {
   }
 }
 
-/** ========= Page ========= */
-export default function MyBrainPage() {
+/** ========= Main Content Component (uses useSearchParams) ========= */
+function MyBrainContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const debug = searchParams?.get('debug') === '1'
@@ -195,94 +195,29 @@ export default function MyBrainPage() {
     ]
   }
 
-  const averageScores = () => {
+  const computeAverages = () => {
     if (!cognitiveData.length) return []
-    const domains: DomainKey[] = ['memory', 'attention', 'recall', 'problemSolving', 'creativity']
-    const names = ['Memory', 'Attention', 'Recall', 'Problem Solving', 'Creativity']
-
-    return domains.map((key, idx) => {
-      const avg = cognitiveData.reduce((sum, d) => sum + (d[key] ?? 0), 0) / cognitiveData.length
-      const latest = cognitiveData[cognitiveData.length - 1][key] ?? 0
-      return {
-        domain: names[idx],
-        average: Math.round(avg),
-        latest,
-        emoji: getDomainEmoji(names[idx]),
-      }
+    const sums = { memory: 0, attention: 0, recall: 0, problemSolving: 0, creativity: 0 }
+    cognitiveData.forEach((row) => {
+      sums.memory += row.memory
+      sums.attention += row.attention
+      sums.recall += row.recall
+      sums.problemSolving += row.problemSolving
+      sums.creativity += row.creativity
     })
-  }
-
-  /** ===== UI States ===== */
- if (loading) {
-  return (
-    <main className="min-h-screen bg-gradient-to-br from-yellow-50 to-pink-100 px-6 py-6">
-      <div className="max-w-7xl mx-auto">
-        <div className="mb-6">
-          <Link
-            href="/Prep/AboutMe"
-            className="inline-flex items-center gap-2 text-purple-700 hover:text-purple-800 hover:underline"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to About Me
-          </Link>
-        </div>
-
-        <div className="flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4" />
-            <p className="text-purple-600 font-medium">Loading your cognitive data...</p>
-          </div>
-        </div>
-      </div>
-    </main>
-  )
-}
-
-
-  if (error || !cognitiveData.length) {
-    return (
-      <main className="min-h-screen bg-gradient-to-br from-yellow-50 to-pink-100 flex items-center justify-center px-6">
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center bg-white/40 backdrop-blur-sm p-10 rounded-[2rem] border border-white/40 shadow-lg max-w-md"
-        >
-          <div className="text-4xl mb-4">🧠</div>
-          <h2 className="text-2xl font-bold text-purple-700 mb-4">No Cognitive Data Yet</h2>
-          <p className="text-gray-700 mb-6">
-            {error || 'Complete some cognitive assessments to see your brain performance data here.'}
-          </p>
-          <div className="space-y-3">
-            <button
-              onClick={() => router.push('/cognitive-assessment')}
-              className="bg-gradient-to-r from-pink-500 to-purple-600 text-white px-6 py-3 rounded-full font-medium w-full hover:scale-105 transition-all"
-            >
-              🧪 Start Assessment
-            </button>
-            <button
-              onClick={() => router.push('/Prep/AboutMe')}
-              className="bg-white/50 text-purple-700 px-6 py-3 rounded-full font-medium border border-purple-300 w-full hover:scale-105 transition-all"
-            >
-              👤 Back to Profile
-            </button>
-          </div>
-
-          {/* Debug overlay even on empty */}
-          {debug && (
-            <div className="mt-6 p-4 bg-black/80 text-green-200 rounded-xl text-sm text-left">
-              <div className="font-semibold text-green-300 mb-2">Debug</div>
-              <pre className="whitespace-pre-wrap">
-{JSON.stringify(debugInfo, null, 2)}
-              </pre>
-            </div>
-          )}
-        </motion.div>
-      </main>
-    )
+    const n = cognitiveData.length
+    const latest = cognitiveData[cognitiveData.length - 1]
+    return [
+      { domain: 'Memory', average: Math.round(sums.memory / n), latest: latest.memory, emoji: '🧠' },
+      { domain: 'Attention', average: Math.round(sums.attention / n), latest: latest.attention, emoji: '👁️' },
+      { domain: 'Recall', average: Math.round(sums.recall / n), latest: latest.recall, emoji: '💭' },
+      { domain: 'Problem Solving', average: Math.round(sums.problemSolving / n), latest: latest.problemSolving, emoji: '🧩' },
+      { domain: 'Creativity', average: Math.round(sums.creativity / n), latest: latest.creativity, emoji: '🎨' },
+    ]
   }
 
   const latest = latestScores()
-  const averages = averageScores()
+  const averages = computeAverages()
   const selectedDataKey: DomainKey = domainKeyMap[selectedDomain] ?? 'memory'
 
   return (
@@ -473,5 +408,21 @@ export default function MyBrainPage() {
         )}
       </div>
     </main>
+  )
+}
+
+/** ========= Page Component (wraps content in Suspense) ========= */
+export default function MyBrainPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-yellow-50 to-pink-100">
+        <div className="text-center">
+          <div className="text-4xl mb-4">🧠</div>
+          <div className="text-lg text-gray-700">Loading your brain data...</div>
+        </div>
+      </div>
+    }>
+      <MyBrainContent />
+    </Suspense>
   )
 }
