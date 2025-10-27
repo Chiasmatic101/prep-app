@@ -2,6 +2,29 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 
+// Type definitions
+interface GameComponentProps {
+  onComplete: () => void;
+  timeLeft: number;
+  isActive: boolean;
+  startTimer: () => void;
+  onDataUpdate: (data: any) => void;
+}
+
+interface CognitiveDataServiceProps {
+  onComplete?: (data: any) => void;
+}
+
+interface AssessmentStage {
+  id: string;
+  title: string;
+  subtitle: string;
+  component: React.ComponentType<GameComponentProps>;
+  duration: number;
+  cognitive_domain: string;
+  color: string;
+}
+
 // Mock game components for the assessment
 const ProcessingSpeedTest = ({ 
   onComplete, 
@@ -9,13 +32,7 @@ const ProcessingSpeedTest = ({
   isActive, 
   startTimer, 
   onDataUpdate 
-}: { 
-  onComplete: () => void;
-  timeLeft: number;
-  isActive: boolean;
-  startTimer: () => void;
-  onDataUpdate: (data: any) => void;
-}) => {
+}: GameComponentProps) => {
   const [score, setScore] = useState(0)
   const [currentSymbol, setCurrentSymbol] = useState('')
   const [targetSymbol, setTargetSymbol] = useState('')
@@ -39,7 +56,6 @@ const ProcessingSpeedTest = ({
 
   useEffect(() => {
     if (timeLeft === 0 && testStarted) {
-      // Send final data when time runs out
       const testData = {
         testType: 'processingSpeed',
         totalSymbols: correctHits + falseAlarms,
@@ -69,7 +85,6 @@ const ProcessingSpeedTest = ({
     
     setTimeout(() => {
       if (symbol === targetSymbol) {
-        // Record missed target (no click within time window)
         const reactionTime = Date.now() - symbolStartTime
         setReactionTimes(prev => [...prev, reactionTime])
       }
@@ -81,7 +96,7 @@ const ProcessingSpeedTest = ({
   const handleClick = () => {
     if (!currentSymbol || !testStarted) return
     
-    const reactionTime = Date.now() - (Date.now() - 800) // Approximate symbol show time
+    const reactionTime = Date.now() - (Date.now() - 800)
     setReactionTimes(prev => [...prev, reactionTime])
     
     if (currentSymbol === targetSymbol) {
@@ -177,13 +192,7 @@ const WorkingMemoryTest = ({
   isActive, 
   startTimer, 
   onDataUpdate 
-}: { 
-  onComplete: () => void;
-  timeLeft: number;
-  isActive: boolean;
-  startTimer: () => void;
-  onDataUpdate: (data: any) => void;
-}) => {
+}: GameComponentProps) => {
   const [sequence, setSequence] = useState<number[]>([])
   const [userInput, setUserInput] = useState<number[]>([])
   const [currentNumber, setCurrentNumber] = useState<number | null>(null)
@@ -206,13 +215,11 @@ const WorkingMemoryTest = ({
     if (timeLeft === 0 && testStarted) {
       const testData = {
         testType: 'workingMemory',
-        maxLevel: level,
-        totalAttempts: attempts,
-        correctSequences: score,
-        accuracy: attempts > 0 ? (score / attempts) * 100 : 0,
-        averageReactionTime: reactionTimes.length > 0 ? reactionTimes.reduce((a, b) => a + b, 0) / reactionTimes.length : 0,
-        reactionTimes: [...reactionTimes],
         finalLevel: level,
+        score,
+        totalAttempts: attempts,
+        averageReactionTime: reactionTimes.length > 0 ? reactionTimes.reduce((a, b) => a + b, 0) / reactionTimes.length : 0,
+        accuracy: attempts > 0 ? (score / attempts) * 100 : 0,
         completed: true
       }
       onDataUpdate(testData)
@@ -226,12 +233,12 @@ const WorkingMemoryTest = ({
   }
   
   const startNewSequence = () => {
-    const newSequence = Array.from({ length: level }, () => Math.floor(Math.random() * 9) + 1)
-    setSequence(newSequence)
+    const newSeq = Array.from({ length: level }, () => Math.floor(Math.random() * 9) + 1)
+    setSequence(newSeq)
     setUserInput([])
     setPhase('showing')
     setSequenceStartTime(Date.now())
-    showSequence(newSequence)
+    showSequence(newSeq)
   }
   
   const showSequence = async (seq: number[]) => {
@@ -239,39 +246,38 @@ const WorkingMemoryTest = ({
       setCurrentNumber(seq[i])
       await new Promise(resolve => setTimeout(resolve, 1000))
       setCurrentNumber(null)
-      await new Promise(resolve => setTimeout(resolve, 200))
+      await new Promise(resolve => setTimeout(resolve, 300))
     }
-    setPhase('input')
-    setSequenceStartTime(Date.now()) // Reset timer for input phase
+    setPhase('recall')
   }
   
   const handleNumberClick = (num: number) => {
-    if (phase !== 'input') return
-    
-    const clickTime = Date.now()
-    const reactionTime = clickTime - sequenceStartTime
+    if (phase !== 'recall') return
     
     const newInput = [...userInput, num]
     setUserInput(newInput)
-    setReactionTimes(prev => [...prev, reactionTime])
     
     if (newInput.length === sequence.length) {
-      const correct = newInput.every((num, idx) => num === sequence[idx])
+      const recallTime = Date.now() - sequenceStartTime
+      setReactionTimes(prev => [...prev, recallTime])
       setAttempts(prev => prev + 1)
+      
+      const correct = newInput.every((n, i) => n === sequence[i])
       
       if (correct) {
         setScore(prev => prev + 1)
-        setLevel(prev => Math.min(prev + 1, 8))
+        setLevel(prev => prev + 1)
+        setPhase('correct')
       } else {
-        setLevel(prev => Math.max(prev - 1, 2))
+        setLevel(prev => Math.max(3, prev - 1))
+        setPhase('incorrect')
       }
       
       setTimeout(() => {
-        startNewSequence()
-      }, 1000)
-    } else {
-      // Update sequence start time for next click
-      setSequenceStartTime(clickTime)
+        if (timeLeft > 0) {
+          startNewSequence()
+        }
+      }, 1500)
     }
   }
 
@@ -283,23 +289,16 @@ const WorkingMemoryTest = ({
         <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 mb-8 text-left">
           <h4 className="text-xl font-semibold mb-4">Instructions:</h4>
           <ul className="space-y-3 text-lg">
-            <li>• Watch as numbers appear one by one on screen</li>
-            <li>• Remember the sequence in the correct order</li>
-            <li>• After the sequence ends, click the numbers in the same order</li>
-            <li>• The test starts with 3 numbers and adapts based on your performance</li>
-            <li>• Focus and try to remember as many as possible</li>
+            <li>• Watch a sequence of numbers flash on screen</li>
+            <li>• After the sequence, reproduce it from memory</li>
+            <li>• Sequences get longer as you progress</li>
+            <li>• Focus and try to remember the exact order</li>
           </ul>
-        </div>
-
-        <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 mb-8">
-          <h4 className="text-lg font-semibold mb-4">Example:</h4>
-          <p className="mb-2">If you see: <span className="text-2xl text-blue-400 mx-1">7</span> → <span className="text-2xl text-blue-400 mx-1">3</span> → <span className="text-2xl text-blue-400 mx-1">9</span></p>
-          <p>Then click: 7, then 3, then 9</p>
         </div>
         
         <button
           onClick={handleStartTest}
-          className="px-8 py-4 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold text-xl"
+          className="px-8 py-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-semibold text-xl"
         >
           Start Test
         </button>
@@ -311,38 +310,45 @@ const WorkingMemoryTest = ({
     <div className="text-center">
       <div className="mb-6">
         <h3 className="text-2xl font-bold mb-2">Working Memory Test</h3>
-        <p className="text-sm opacity-75">Remember the sequence, then click numbers in order</p>
+        <p className="text-sm opacity-75">Level: {level} | Score: {score}</p>
       </div>
       
       {phase === 'showing' && (
         <div className="mb-8">
-          <div className="text-8xl font-bold h-32 flex items-center justify-center text-blue-400">
+          <p className="text-lg mb-4">Watch carefully...</p>
+          <div className="text-9xl font-bold h-32 flex items-center justify-center">
             {currentNumber}
           </div>
-          <p className="text-lg">Watch the sequence... (Level {level})</p>
         </div>
       )}
       
-      {phase === 'input' && (
-        <div className="mb-8">
-          <div className="grid grid-cols-3 gap-4 max-w-xs mx-auto mb-6">
-            {[1,2,3,4,5,6,7,8,9].map(num => (
+      {phase === 'recall' && (
+        <div>
+          <p className="text-lg mb-4">Enter the sequence ({userInput.length}/{sequence.length})</p>
+          <div className="text-4xl font-bold mb-8 h-16 flex items-center justify-center">
+            {userInput.join(' ')}
+          </div>
+          <div className="grid grid-cols-3 gap-3 max-w-xs mx-auto">
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
               <button
                 key={num}
                 onClick={() => handleNumberClick(num)}
-                className="aspect-square bg-white/20 hover:bg-white/30 rounded-lg font-bold text-xl"
+                className="aspect-square text-2xl font-bold bg-blue-500 hover:bg-blue-600 text-white rounded-lg"
               >
                 {num}
               </button>
             ))}
           </div>
-          <div className="text-lg">
-            Progress: {userInput.join('-')} ({userInput.length}/{sequence.length})
-          </div>
         </div>
       )}
       
-      <div className="text-lg">Score: {score} | Level: {level}</div>
+      {phase === 'correct' && (
+        <div className="text-4xl font-bold text-green-400">✓ Correct!</div>
+      )}
+      
+      {phase === 'incorrect' && (
+        <div className="text-4xl font-bold text-red-400">✗ Try Again</div>
+      )}
     </div>
   )
 }
@@ -353,28 +359,37 @@ const AttentionTest = ({
   isActive, 
   startTimer, 
   onDataUpdate 
-}: { 
-  onComplete: () => void;
-  timeLeft: number;
-  isActive: boolean;
-  startTimer: () => void;
-  onDataUpdate: (data: any) => void;
-}) => {
-  const [grid, setGrid] = useState([])
-  const [targetPositions, setTargetPositions] = useState(new Set())
-  const [selectedPositions, setSelectedPositions] = useState(new Set())
-  const [phase, setPhase] = useState('showing') // 'showing', 'recall', 'feedback'
+}: GameComponentProps) => {
+  const [gridSize] = useState(5)
+  const [level, setLevel] = useState(3)
+  const [targetPositions, setTargetPositions] = useState<Set<number>>(new Set())
+  const [selectedPositions, setSelectedPositions] = useState<Set<number>>(new Set())
+  const [phase, setPhase] = useState('showing')
   const [score, setScore] = useState(0)
-  const [round, setRound] = useState(1)
   const [showInstructions, setShowInstructions] = useState(true)
   const [testStarted, setTestStarted] = useState(false)
-  const [isCorrect, setIsCorrect] = useState(null)
+  const [attempts, setAttempts] = useState(0)
+  const [accuracyScores, setAccuracyScores] = useState<number[]>([])
   
   useEffect(() => {
-    if (isActive && testStarted && phase === 'showing') {
+    if (isActive && testStarted && targetPositions.size === 0) {
       startNewRound()
     }
   }, [isActive, testStarted])
+
+  useEffect(() => {
+    if (timeLeft === 0 && testStarted) {
+      const testData = {
+        testType: 'attention',
+        finalLevel: level,
+        score,
+        totalAttempts: attempts,
+        averageAccuracy: accuracyScores.length > 0 ? accuracyScores.reduce((a, b) => a + b, 0) / accuracyScores.length : 0,
+        completed: true
+      }
+      onDataUpdate(testData)
+    }
+  }, [timeLeft, testStarted])
   
   const handleStartTest = () => {
     setShowInstructions(false)
@@ -383,25 +398,20 @@ const AttentionTest = ({
   }
   
   const startNewRound = () => {
-    const gridSize = 16
-    const numTargets = Math.min(3 + Math.floor(round / 2), 6)
-    
-    const newTargetPositions = new Set()
-    while (newTargetPositions.size < numTargets) {
-      newTargetPositions.add(Math.floor(Math.random() * gridSize))
+    const positions = new Set<number>()
+    while (positions.size < level) {
+      positions.add(Math.floor(Math.random() * (gridSize * gridSize)))
     }
-    
-    setTargetPositions(newTargetPositions)
+    setTargetPositions(positions)
     setSelectedPositions(new Set())
     setPhase('showing')
-    setIsCorrect(null)
     
     setTimeout(() => {
       setPhase('recall')
     }, 2000)
   }
   
- const handleCellClick = (index: number) => {
+  const handleCellClick = (index: number) => {
     if (phase !== 'recall') return
     
     const newSelected = new Set(selectedPositions)
@@ -413,24 +423,28 @@ const AttentionTest = ({
     setSelectedPositions(newSelected)
   }
   
-  const submitAnswer = () => {
+  const handleSubmit = () => {
+    setAttempts(prev => prev + 1)
+    
     let correct = 0
     targetPositions.forEach(pos => {
       if (selectedPositions.has(pos)) correct++
     })
     
     const accuracy = correct / targetPositions.size
-    const wasCorrect = accuracy >= 0.7
-    setIsCorrect(wasCorrect)
-    setPhase('feedback')
+    setAccuracyScores(prev => [...prev, accuracy])
     
-    if (wasCorrect) {
+    if (accuracy >= 0.7) {
       setScore(prev => prev + 1)
-      setRound(prev => prev + 1)
+      setLevel(prev => prev + 1)
+      setPhase('correct')
+    } else {
+      setLevel(prev => Math.max(3, prev - 1))
+      setPhase('incorrect')
     }
     
     setTimeout(() => {
-      if (isActive) {
+      if (timeLeft > 0) {
         startNewRound()
       }
     }, 1500)
@@ -439,25 +453,16 @@ const AttentionTest = ({
   if (showInstructions) {
     return (
       <div className="text-center max-w-2xl mx-auto">
-        <h3 className="text-3xl font-bold mb-6">Visual Attention Test</h3>
+        <h3 className="text-3xl font-bold mb-6">Attention Test</h3>
         
         <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 mb-8 text-left">
           <h4 className="text-xl font-semibold mb-4">Instructions:</h4>
           <ul className="space-y-3 text-lg">
-            <li>• You'll see a 4x4 grid of squares</li>
-            <li>• Some squares will be highlighted in yellow for 2 seconds</li>
-            <li>• Remember which squares were highlighted</li>
-            <li>• After they disappear, click on the squares that were highlighted</li>
-            <li>• Click "Submit" when you've selected all the squares you remember</li>
-            <li>• You'll see feedback after each round showing if you were correct</li>
+            <li>• A grid will appear with highlighted squares</li>
+            <li>• Remember which squares are highlighted</li>
+            <li>• After they disappear, click the squares you remember</li>
+            <li>• More squares will be added as you progress</li>
           </ul>
-        </div>
-
-        <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 mb-8">
-          <div className="text-lg font-semibold mb-2">Tips:</div>
-          <p>• You can click squares multiple times to toggle selection</p>
-          <p>• Selected squares will turn blue</p>
-          <p>• Try to be as accurate as possible</p>
         </div>
         
         <button
@@ -473,224 +478,149 @@ const AttentionTest = ({
   return (
     <div className="text-center">
       <div className="mb-6">
-        <h3 className="text-2xl font-bold mb-2">Visual Attention Test</h3>
+        <h3 className="text-2xl font-bold mb-2">Attention Test</h3>
         <p className="text-sm opacity-75">
-          {phase === 'showing' 
-            ? 'Remember the highlighted squares' 
-            : phase === 'recall'
-            ? 'Click the squares that were highlighted'
-            : 'Feedback'
-          }
+          {phase === 'showing' && 'Remember the highlighted squares'}
+          {phase === 'recall' && `Select ${level} squares`}
+          {phase === 'correct' && '✓ Correct!'}
+          {phase === 'incorrect' && '✗ Try Again'}
         </p>
       </div>
       
-      <div className="grid grid-cols-4 gap-2 max-w-xs mx-auto mb-6">
-        {Array.from({ length: 16 }, (_, index) => (
-          <button
-            key={index}
-            onClick={() => handleCellClick(index)}
-            className={`aspect-square rounded-lg font-bold transition-colors ${
-              phase === 'showing' && targetPositions.has(index)
-                ? 'bg-yellow-400'
-                : phase === 'feedback' && targetPositions.has(index)
-                ? selectedPositions.has(index)
-                  ? 'bg-green-400'
-                  : 'bg-red-400/70'
-                : phase === 'feedback' && selectedPositions.has(index) && !targetPositions.has(index)
-                ? 'bg-red-400'
-                : phase === 'recall' && selectedPositions.has(index)
-                ? 'bg-blue-400'
-                : 'bg-white/20 hover:bg-white/30'
-            }`}
-            disabled={phase === 'showing' || phase === 'feedback'}
-          />
-        ))}
+      <div 
+        className="grid gap-2 max-w-md mx-auto mb-6"
+        style={{ gridTemplateColumns: `repeat(${gridSize}, minmax(0, 1fr))` }}
+      >
+        {Array.from({ length: gridSize * gridSize }).map((_, index) => {
+          const isTarget = targetPositions.has(index)
+          const isSelected = selectedPositions.has(index)
+          const showTarget = phase === 'showing' || phase === 'correct' || phase === 'incorrect'
+          
+          return (
+            <button
+              key={index}
+              onClick={() => handleCellClick(index)}
+              disabled={phase !== 'recall'}
+              className={`aspect-square rounded-lg border-2 transition-colors ${
+                showTarget && isTarget
+                  ? 'bg-green-500 border-green-600'
+                  : isSelected
+                  ? 'bg-blue-500 border-blue-600'
+                  : 'bg-white/20 border-white/30 hover:bg-white/30'
+              }`}
+            />
+          )
+        })}
       </div>
       
       {phase === 'recall' && (
         <button
-          onClick={submitAnswer}
-          className="px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold mb-4"
+          onClick={handleSubmit}
+          className="px-8 py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold"
         >
-          Submit ({selectedPositions.size} selected)
+          Submit ({selectedPositions.size}/{level})
         </button>
       )}
       
-      {phase === 'feedback' && (
-        <div className="mb-4">
-          <div className={`text-2xl font-bold mb-2 ${isCorrect ? 'text-green-400' : 'text-red-400'}`}>
-            {isCorrect ? '✓ Correct!' : '✗ Incorrect'}
-          </div>
-          <p className="text-sm opacity-75">
-            Green squares were correct targets, red squares show mistakes
-          </p>
-        </div>
-      )}
-      
-      <div className="text-lg">Score: {score} | Round: {round}</div>
+      <div className="mt-6 text-sm">
+        Level: {level} | Score: {score}
+      </div>
     </div>
   )
 }
 
-const ProblemSolvingTest = ({ onComplete, timeLeft, isActive, startTimer }) => {
-  const [board, setBoard] = useState(Array(9).fill(null))
-  const [isPlayerTurn, setIsPlayerTurn] = useState(true)
-  const [gameState, setGameState] = useState('playing') // 'playing', 'won', 'lost', 'draw'
+const ProblemSolvingTest = ({ 
+  onComplete, 
+  timeLeft, 
+  isActive, 
+  startTimer, 
+  onDataUpdate 
+}: GameComponentProps) => {
+  const [currentPuzzle, setCurrentPuzzle] = useState(0)
   const [score, setScore] = useState(0)
-  const [gamesPlayed, setGamesPlayed] = useState(0)
   const [showInstructions, setShowInstructions] = useState(true)
   const [testStarted, setTestStarted] = useState(false)
-  const [difficulty, setDifficulty] = useState(1) // 1 = easy, 2 = medium, 3 = hard
+  const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null)
+  const [attempts, setAttempts] = useState(0)
+  const [solveTimes, setSolveTimes] = useState<number[]>([])
+  const [puzzleStartTime, setPuzzleStartTime] = useState(Date.now())
   
-  const winningCombinations = [
-    [0, 1, 2], [3, 4, 5], [6, 7, 8], // rows
-    [0, 3, 6], [1, 4, 7], [2, 5, 8], // columns
-    [0, 4, 8], [2, 4, 6] // diagonals
+  const puzzles = [
+    {
+      question: "If 2 + 2 = 4, and 3 + 3 = 6, what does 4 + 4 equal?",
+      options: [6, 7, 8, 9],
+      correct: 2
+    },
+    {
+      question: "Complete the pattern: 2, 4, 6, 8, __",
+      options: [9, 10, 11, 12],
+      correct: 1
+    },
+    {
+      question: "If A = 1, B = 2, C = 3, what does D equal?",
+      options: [3, 4, 5, 6],
+      correct: 1
+    },
+    {
+      question: "Which shape comes next: ○, □, ○, □, __",
+      options: ['○', '□', '△', '◇'],
+      correct: 0
+    },
+    {
+      question: "What number comes next: 1, 1, 2, 3, 5, __",
+      options: [6, 7, 8, 9],
+      correct: 2
+    }
   ]
   
   useEffect(() => {
-    if (isActive && testStarted && !isPlayerTurn && gameState === 'playing') {
-      const timer = setTimeout(() => {
-        makeAIMove()
-      }, 500)
-      return () => clearTimeout(timer)
+    if (isActive && testStarted) {
+      setPuzzleStartTime(Date.now())
     }
-  }, [isPlayerTurn, gameState, isActive, testStarted])
+  }, [currentPuzzle, isActive, testStarted])
+
+  useEffect(() => {
+    if (timeLeft === 0 && testStarted) {
+      const testData = {
+        testType: 'problemSolving',
+        totalPuzzles: puzzles.length,
+        score,
+        attempts,
+        accuracy: attempts > 0 ? (score / attempts) * 100 : 0,
+        averageSolveTime: solveTimes.length > 0 ? solveTimes.reduce((a, b) => a + b, 0) / solveTimes.length : 0,
+        completed: true
+      }
+      onDataUpdate(testData)
+    }
+  }, [timeLeft, testStarted])
   
   const handleStartTest = () => {
     setShowInstructions(false)
     setTestStarted(true)
+    setPuzzleStartTime(Date.now())
     if (startTimer) startTimer()
   }
   
-  const checkWinner = (boardState) => {
-    for (let combo of winningCombinations) {
-      const [a, b, c] = combo
-      if (boardState[a] && boardState[a] === boardState[b] && boardState[a] === boardState[c]) {
-        return boardState[a]
-      }
-    }
-    return boardState.includes(null) ? null : 'draw'
-  }
-  
-  const getEmptySquares = (boardState) => {
-    return boardState.map((square, index) => square === null ? index : null).filter(val => val !== null)
-  }
-  
-  const makeAIMove = () => {
-    const currentBoard = [...board]
-    const emptySquares = getEmptySquares(currentBoard)
+  const handleAnswer = (answerIndex: number) => {
+    setSelectedAnswer(answerIndex)
+    const solveTime = Date.now() - puzzleStartTime
+    setSolveTimes(prev => [...prev, solveTime])
+    setAttempts(prev => prev + 1)
     
-    if (emptySquares.length === 0) return
-    
-    let move
-    
-    if (difficulty === 1) {
-      // Easy: Random moves with occasional good moves
-      if (Math.random() < 0.3) {
-        move = getBestMove(currentBoard, 'O') || emptySquares[Math.floor(Math.random() * emptySquares.length)]
-      } else {
-        move = emptySquares[Math.floor(Math.random() * emptySquares.length)]
-      }
-    } else if (difficulty === 2) {
-      // Medium: Mix of good moves and random
-      if (Math.random() < 0.7) {
-        move = getBestMove(currentBoard, 'O') || emptySquares[Math.floor(Math.random() * emptySquares.length)]
-      } else {
-        move = emptySquares[Math.floor(Math.random() * emptySquares.length)]
-      }
-    } else {
-      // Hard: Always try to make the best move
-      move = getBestMove(currentBoard, 'O') || emptySquares[Math.floor(Math.random() * emptySquares.length)]
-    }
-    
-    const newBoard = [...currentBoard]
-    newBoard[move] = 'O'
-    setBoard(newBoard)
-    
-    const winner = checkWinner(newBoard)
-    if (winner) {
-      handleGameEnd(winner)
-    } else {
-      setIsPlayerTurn(true)
-    }
-  }
-  
-  const getBestMove = (boardState, player) => {
-    const opponent = player === 'X' ? 'O' : 'X'
-    
-    // Check if AI can win
-    for (let combo of winningCombinations) {
-      const [a, b, c] = combo
-      const values = [boardState[a], boardState[b], boardState[c]]
-      if (values.filter(v => v === player).length === 2 && values.includes(null)) {
-        return combo[values.indexOf(null)]
-      }
-    }
-    
-    // Check if AI needs to block player
-    for (let combo of winningCombinations) {
-      const [a, b, c] = combo
-      const values = [boardState[a], boardState[b], boardState[c]]
-      if (values.filter(v => v === opponent).length === 2 && values.includes(null)) {
-        return combo[values.indexOf(null)]
-      }
-    }
-    
-    // Take center if available
-    if (boardState[4] === null) return 4
-    
-    // Take corners
-    const corners = [0, 2, 6, 8]
-    const availableCorners = corners.filter(corner => boardState[corner] === null)
-    if (availableCorners.length > 0) {
-      return availableCorners[Math.floor(Math.random() * availableCorners.length)]
-    }
-    
-    return null
-  }
-  
-  const handleSquareClick = (index) => {
-    if (!isPlayerTurn || board[index] !== null || gameState !== 'playing') return
-    
-    const newBoard = [...board]
-    newBoard[index] = 'X'
-    setBoard(newBoard)
-    
-    const winner = checkWinner(newBoard)
-    if (winner) {
-      handleGameEnd(winner)
-    } else {
-      setIsPlayerTurn(false)
-    }
-  }
-  
-  const handleGameEnd = (winner) => {
-    setGamesPlayed(prev => prev + 1)
-    
-    if (winner === 'X') {
+    if (answerIndex === puzzles[currentPuzzle].correct) {
       setScore(prev => prev + 1)
-      setGameState('won')
-      // Increase difficulty after wins
-      if (difficulty < 3 && score > 0 && score % 2 === 1) {
-        setDifficulty(prev => prev + 1)
-      }
-    } else if (winner === 'O') {
-      setGameState('lost')
-    } else {
-      setGameState('draw')
-      setScore(prev => prev + 0.5) // Half point for draws
     }
     
     setTimeout(() => {
-      startNewGame()
-    }, 2000)
-  }
-  
-  const startNewGame = () => {
-    setBoard(Array(9).fill(null))
-    setIsPlayerTurn(true)
-    setGameState('playing')
+      setSelectedAnswer(null)
+      if (currentPuzzle < puzzles.length - 1) {
+        setCurrentPuzzle(prev => prev + 1)
+        setPuzzleStartTime(Date.now())
+      } else {
+        setCurrentPuzzle(0)
+        setPuzzleStartTime(Date.now())
+      }
+    }, 1500)
   }
 
   if (showInstructions) {
@@ -701,26 +631,16 @@ const ProblemSolvingTest = ({ onComplete, timeLeft, isActive, startTimer }) => {
         <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 mb-8 text-left">
           <h4 className="text-xl font-semibold mb-4">Instructions:</h4>
           <ul className="space-y-3 text-lg">
-            <li>• Play Tic-Tac-Toe against the AI</li>
-            <li>• You are X, the AI is O</li>
-            <li>• Click on empty squares to make your moves</li>
-            <li>• Try to get three X's in a row (horizontal, vertical, or diagonal)</li>
-            <li>• The AI will get smarter as you win more games</li>
-            <li>• Score points for wins and draws</li>
+            <li>• Solve logic puzzles and pattern recognition problems</li>
+            <li>• Read each question carefully</li>
+            <li>• Click your answer choice</li>
+            <li>• Work as quickly and accurately as you can</li>
           </ul>
-        </div>
-
-        <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 mb-8">
-          <h4 className="text-lg font-semibold mb-4">Scoring:</h4>
-          <p>• Win = 1 point</p>
-          <p>• Draw = 0.5 points</p>
-          <p>• Loss = 0 points</p>
-          <p>• AI difficulty increases as you improve</p>
         </div>
         
         <button
           onClick={handleStartTest}
-          className="px-8 py-4 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold text-xl"
+          className="px-8 py-4 bg-purple-500 hover:bg-purple-600 text-white rounded-lg font-semibold text-xl"
         >
           Start Test
         </button>
@@ -728,305 +648,142 @@ const ProblemSolvingTest = ({ onComplete, timeLeft, isActive, startTimer }) => {
     )
   }
   
+  const puzzle = puzzles[currentPuzzle]
+  
   return (
-    <div className="text-center">
+    <div className="text-center max-w-2xl mx-auto">
       <div className="mb-6">
         <h3 className="text-2xl font-bold mb-2">Problem Solving Test</h3>
-        <p className="text-sm opacity-75">
-          {gameState === 'playing' 
-            ? isPlayerTurn 
-              ? 'Your turn - Click a square'
-              : 'AI is thinking...'
-            : gameState === 'won'
-            ? '🎉 You Won!'
-            : gameState === 'lost'
-            ? '😔 You Lost'
-            : '🤝 Draw!'
-          }
-        </p>
+        <p className="text-sm opacity-75">Question {currentPuzzle + 1} of {puzzles.length} | Score: {score}</p>
       </div>
       
-      <div className="grid grid-cols-3 gap-2 max-w-xs mx-auto mb-6">
-        {board.map((square, index) => (
-          <button
-            key={index}
-            onClick={() => handleSquareClick(index)}
-            className={`aspect-square bg-white/20 hover:bg-white/30 rounded-lg font-bold text-3xl transition-colors ${
-              !isPlayerTurn || square !== null || gameState !== 'playing' 
-                ? 'cursor-not-allowed opacity-70' 
-                : 'hover:bg-white/40'
-            } ${
-              square === 'X' ? 'text-blue-400' : square === 'O' ? 'text-red-400' : 'text-white/50'
-            }`}
-            disabled={!isPlayerTurn || square !== null || gameState !== 'playing'}
-          >
-            {square || ''}
-          </button>
-        ))}
-      </div>
-      
-      <div className="grid grid-cols-3 gap-4 max-w-xs mx-auto text-sm">
-        <div className="bg-white/20 rounded-lg p-2">
-          <div className="font-bold text-blue-400">{score}</div>
-          <div className="opacity-75">Score</div>
-        </div>
-        <div className="bg-white/20 rounded-lg p-2">
-          <div className="font-bold text-purple-400">{gamesPlayed}</div>
-          <div className="opacity-75">Games</div>
-        </div>
-        <div className="bg-white/20 rounded-lg p-2">
-          <div className="font-bold text-orange-400">{difficulty}</div>
-          <div className="opacity-75">Level</div>
+      <div className="bg-white/10 backdrop-blur-sm rounded-lg p-8 mb-8">
+        <p className="text-2xl font-semibold mb-8">{puzzle.question}</p>
+        
+        <div className="grid grid-cols-2 gap-4">
+          {puzzle.options.map((option, index) => {
+            const isSelected = selectedAnswer === index
+            const isCorrect = index === puzzle.correct
+            const showResult = selectedAnswer !== null
+            
+            return (
+              <button
+                key={index}
+                onClick={() => handleAnswer(index)}
+                disabled={selectedAnswer !== null}
+                className={`p-6 text-xl font-semibold rounded-lg border-2 transition-all ${
+                  showResult
+                    ? isCorrect
+                      ? 'bg-green-500 border-green-600 text-white'
+                      : isSelected
+                      ? 'bg-red-500 border-red-600 text-white'
+                      : 'bg-white/10 border-white/20'
+                    : 'bg-white/10 border-white/20 hover:bg-white/20'
+                }`}
+              >
+                {option}
+              </button>
+            )
+          })}
         </div>
       </div>
     </div>
   )
 }
 
-const assessmentStages = [
-  {
-    id: 'processing-speed',
-    title: 'Processing Speed',
-    subtitle: 'Quick symbol detection to measure your mental processing speed',
-    component: ProcessingSpeedTest,
-    duration: 30,
-    color: 'from-blue-500 to-cyan-500',
-    cognitive_domain: 'Processing Speed'
-  },
-  {
-    id: 'working-memory',
-    title: 'Working Memory',
-    subtitle: 'Number sequence recall to assess your working memory capacity',
-    component: WorkingMemoryTest,
-    duration: 30,
-    color: 'from-purple-500 to-pink-500',
-    cognitive_domain: 'Working Memory'
-  },
-  {
-    id: 'attention',
-    title: 'Visual Attention',
-    subtitle: 'Spatial attention and visual memory assessment',
-    component: AttentionTest,
-    duration: 30,
-    color: 'from-green-500 to-teal-500',
-    cognitive_domain: 'Attention'
-  },
-  {
-    id: 'problem-solving',
-    title: 'Problem Solving',
-    subtitle: 'Strategic thinking through Tic-Tac-Toe gameplay',
-    component: ProblemSolvingTest,
-    duration: 30,
-    color: 'from-orange-500 to-red-500',
-    cognitive_domain: 'Problem Solving'
-  }
-]
-
-export default function CognitiveAssessmentFlow({ onComplete }) {
+// Main Cognitive Data Service Component
+export const CognitiveDataService: React.FC<CognitiveDataServiceProps> = ({ onComplete }) => {
   const [currentStage, setCurrentStage] = useState(0)
-  const [timeLeft, setTimeLeft] = useState(assessmentStages[0].duration)
+  const [timeLeft, setTimeLeft] = useState(0)
   const [isActive, setIsActive] = useState(false)
-  const [showTransition, setShowTransition] = useState(false)
+  const [results, setResults] = useState<any[]>([])
   const [isStarted, setIsStarted] = useState(false)
-  const [results, setResults] = useState([])
-  const [sessionData, setSessionData] = useState({})
-  const [userId, setUserId] = useState(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const [saveError, setSaveError] = useState('')
+  const [showTransition, setShowTransition] = useState(false)
+  const [elapsedTime, setElapsedTime] = useState(0)
   
-  const timerRef = useRef(null)
   const sessionStartTime = useRef(Date.now())
-  const totalDuration = assessmentStages.reduce((sum, stage) => sum + stage.duration, 0)
-  const elapsedTime = assessmentStages.slice(0, currentStage).reduce((sum, stage) => sum + stage.duration, 0) + 
-    (assessmentStages[currentStage]?.duration - timeLeft)
-
-  // Firebase Auth listener
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUserId(user?.uid || null)
-    })
-    return () => unsubscribe()
-  }, [])
-
-  // Import Firebase modules
-  useEffect(() => {
-    // This would normally be imported at the top, but for this example we'll reference them
-    if (typeof window !== 'undefined') {
-      // Firebase modules would be available here
+  const sessionData = useRef<any[]>([])
+  
+  const assessmentStages: AssessmentStage[] = [
+    {
+      id: 'processing',
+      title: 'Processing Speed',
+      subtitle: 'How quickly you process information',
+      component: ProcessingSpeedTest,
+      duration: 60,
+      cognitive_domain: 'Processing Speed',
+      color: 'from-blue-500 to-cyan-500'
+    },
+    {
+      id: 'memory',
+      title: 'Working Memory',
+      subtitle: 'Your ability to hold and manipulate information',
+      component: WorkingMemoryTest,
+      duration: 90,
+      cognitive_domain: 'Working Memory',
+      color: 'from-purple-500 to-pink-500'
+    },
+    {
+      id: 'attention',
+      title: 'Attention',
+      subtitle: 'Your focus and concentration ability',
+      component: AttentionTest,
+      duration: 90,
+      cognitive_domain: 'Attention',
+      color: 'from-green-500 to-emerald-500'
+    },
+    {
+      id: 'problem',
+      title: 'Problem Solving',
+      subtitle: 'Your logical reasoning and pattern recognition',
+      component: ProblemSolvingTest,
+      duration: 90,
+      cognitive_domain: 'Problem Solving',
+      color: 'from-orange-500 to-red-500'
     }
-  }, [])
-
+  ]
+  
+  const totalDuration = assessmentStages.reduce((sum, stage) => sum + stage.duration, 0)
+  
   useEffect(() => {
     if (isActive && timeLeft > 0) {
-      timerRef.current = setTimeout(() => {
+      const timer = setTimeout(() => {
         setTimeLeft(prev => prev - 1)
+        setElapsedTime(prev => prev + 1)
       }, 1000)
+      return () => clearTimeout(timer)
     } else if (timeLeft === 0 && isActive) {
       handleStageComplete()
     }
-
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current)
-    }
   }, [timeLeft, isActive])
-
-  // Handle test data updates from individual test components
-  const handleTestDataUpdate = (testData) => {
-    setSessionData(prev => ({
-      ...prev,
-      [assessmentStages[currentStage].id]: testData
-    }))
-  }
-
-  // Save session data to Firebase/localStorage
-  const saveSessionData = async (completeSessionData) => {
-    if (!userId) {
-      console.log('No user logged in, saving to localStorage')
-      const savedSessions = JSON.parse(localStorage.getItem('cognitiveAssessmentSessions') || '[]')
-      const updatedSessions = [...savedSessions, completeSessionData].slice(-10)
-      localStorage.setItem('cognitiveAssessmentSessions', JSON.stringify(updatedSessions))
-      return
-    }
-
-    setIsLoading(true)
-    setSaveError('')
-
-    try {
-      // This would use your Firebase setup - using placeholder structure from your examples
-      const userDocRef = doc(db, 'users', userId)
-      
-      // Save to user's main document
-      await setDoc(userDocRef, {
-        cognitiveAssessment: {
-          lastCompleted: new Date().toISOString(),
-          totalAssessments: 1, // Would increment existing value
-          bestScores: extractBestScores(completeSessionData),
-          lastSession: completeSessionData.sessionOverview
-        }
-      }, { merge: true })
-
-      // Save detailed session data
-      await addDoc(collection(db, 'users', userId, 'cognitiveAssessmentSessions'), {
-        ...completeSessionData,
-        createdAt: new Date()
-      })
-
-      console.log('Cognitive assessment session saved successfully')
-    } catch (error) {
-      console.error('Error saving session data:', error)
-      setSaveError('Failed to save session data. Your progress may not be synced.')
-      
-      // Fallback to localStorage
-      const savedSessions = JSON.parse(localStorage.getItem('cognitiveAssessmentSessions') || '[]')
-      const updatedSessions = [...savedSessions, completeSessionData].slice(-10)
-      localStorage.setItem('cognitiveAssessmentSessions', JSON.stringify(updatedSessions))
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const extractBestScores = (sessionData) => {
-    return {
-      processingSpeed: sessionData.processingSpeed?.score || 0,
-      workingMemory: sessionData.workingMemory?.maxLevel || 0,
-      attention: sessionData.attention?.accuracy || 0,
-      problemSolving: sessionData.problemSolving?.winRate || 0
-    }
-  }
-
+  
   const calculateCognitiveProfile = () => {
-    const profile = {}
-    
-    // Processing Speed metrics
-    if (sessionData.processingSpeed) {
-      const ps = sessionData.processingSpeed
-      profile.processingSpeed = {
-        score: ps.score,
-        accuracy: ps.accuracy,
-        avgReactionTime: ps.averageReactionTime,
-        percentile: calculatePercentile('processingSpeed', ps.score)
-      }
+    return {
+      processingSpeed: results[0]?.score || 0,
+      workingMemory: results[1]?.score || 0,
+      attention: results[2]?.score || 0,
+      problemSolving: results[3]?.score || 0
     }
-
-    // Working Memory metrics
-    if (sessionData.workingMemory) {
-      const wm = sessionData.workingMemory
-      profile.workingMemory = {
-        maxLevel: wm.maxLevel,
-        accuracy: wm.accuracy,
-        capacity: wm.maxLevel,
-        percentile: calculatePercentile('workingMemory', wm.maxLevel)
-      }
-    }
-
-    // Attention metrics
-    if (sessionData.attention) {
-      const att = sessionData.attention
-      profile.attention = {
-        accuracy: att.accuracy,
-        maxRound: att.maxRound,
-        sustainability: att.totalRounds,
-        percentile: calculatePercentile('attention', att.accuracy)
-      }
-    }
-
-    // Problem Solving metrics
-    if (sessionData.problemSolving) {
-      const ps = sessionData.problemSolving
-      profile.problemSolving = {
-        winRate: ps.winRate,
-        finalDifficulty: ps.finalDifficulty,
-        adaptability: ps.finalDifficulty,
-        percentile: calculatePercentile('problemSolving', ps.winRate)
-      }
-    }
-
-    return profile
   }
-
-  const calculatePercentile = (domain, score) => {
-    // Simplified percentile calculation - in reality this would use normative data
-    const norms = {
-      processingSpeed: { mean: 15, sd: 5 },
-      workingMemory: { mean: 5, sd: 1.5 },
-      attention: { mean: 75, sd: 15 },
-      problemSolving: { mean: 50, sd: 20 }
-    }
-    
-    const norm = norms[domain]
-    if (!norm) return 50
-    
-    const zScore = (score - norm.mean) / norm.sd
-    return Math.max(1, Math.min(99, Math.round(50 + (zScore * 15))))
+  
+  const saveSessionData = async (data: any) => {
+    console.log('Saving session data:', data)
   }
-
+  
   const handleStageComplete = () => {
     setIsActive(false)
-    
-    const stageResults = {
-      stage: assessmentStages[currentStage].id,
-      domain: assessmentStages[currentStage].cognitive_domain,
-      completed: true,
-      timeSpent: assessmentStages[currentStage].duration - timeLeft,
-      data: sessionData[assessmentStages[currentStage].id] || {}
-    }
-    
-    setResults(prev => [...prev, stageResults])
     
     if (currentStage < assessmentStages.length - 1) {
       setShowTransition(true)
       
       setTimeout(() => {
         setCurrentStage(prev => prev + 1)
-        setTimeLeft(assessmentStages[currentStage + 1].duration)
         setShowTransition(false)
-        setIsActive(false)
       }, 3000)
     } else {
-      // Assessment complete - compile and save all data
       setTimeout(async () => {
         const completeSessionData = {
-          sessionOverview: {
+          sessionInfo: {
             sessionStart: sessionStartTime.current,
             sessionEnd: Date.now(),
             totalDuration: Date.now() - sessionStartTime.current,
@@ -1034,7 +791,7 @@ export default function CognitiveAssessmentFlow({ onComplete }) {
             stagesCompleted: assessmentStages.length
           },
           cognitiveProfile: calculateCognitiveProfile(),
-          detailedResults: sessionData,
+          detailedResults: sessionData.current,
           rawResults: results,
           metadata: {
             version: '1.0',
@@ -1058,7 +815,13 @@ export default function CognitiveAssessmentFlow({ onComplete }) {
   }
 
   const startStageTimer = () => {
+    setTimeLeft(assessmentStages[currentStage].duration)
     setIsActive(true)
+  }
+
+  const handleTestDataUpdate = (data: any) => {
+    sessionData.current.push(data)
+    setResults(prev => [...prev, data])
   }
 
   const renderCurrentTest = () => {
