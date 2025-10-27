@@ -161,7 +161,7 @@ const trackCognitiveProgress = async (userId: string, challengeId: string, date:
   ]
   
   let totalSessions = 0
-  const sessionDetails = []
+  const sessionDetails: any[] = []
   
   for (const collectionName of gameCollections) {
     const q = query(
@@ -209,15 +209,15 @@ const trackCognitiveProgress = async (userId: string, challengeId: string, date:
       
       // Calculate reaction time variability
       const reactionTimes = sessionDetails
-        .filter(s => s.reactionTime)
-        .map(s => s.reactionTime)
+        .filter((s: any) => s.reactionTime)
+        .map((s: any) => s.reactionTime)
       
       if (reactionTimes.length < 5) {
         return { success: false, reason: 'Need more data points' }
       }
       
-      const mean = reactionTimes.reduce((a, b) => a + b, 0) / reactionTimes.length
-      const variance = reactionTimes.reduce((sum, rt) => sum + Math.pow(rt - mean, 2), 0) / reactionTimes.length
+      const mean = reactionTimes.reduce((a: number, b: number) => a + b, 0) / reactionTimes.length
+      const variance = reactionTimes.reduce((sum: number, rt: number) => sum + Math.pow(rt - mean, 2), 0) / reactionTimes.length
       const stdDev = Math.sqrt(variance)
       
       // Success if standard deviation is low (consistent performance)
