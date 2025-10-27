@@ -1,4 +1,15 @@
 // utils/challengeTypes.ts
+
+// Base Challenge interface
+export interface Challenge {
+  id: string;
+  title: string;
+  description: string;
+  duration: number; // in days
+  points: number;
+  difficulty?: 'easy' | 'medium' | 'hard';
+}
+
 export interface ChallengeRequirement {
   type: 'time' | 'frequency' | 'duration' | 'checklist' | 'comparison'
   field: string
