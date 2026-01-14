@@ -172,12 +172,10 @@ export default function Home() {
             Meet <span className="text-green-400">Amy</span>
           </h2>
           <h3 className="text-2xl md:text-3xl font-semibold text-gray-200 mb-6">
-            Harnessing Video Games to Predict Mental Health
+            Coming Soon
           </h3>
           <p className="text-lg md:text-xl text-gray-300 mb-8">
-            Our newest platform leverages everyday video gameplay to uncover subtle patterns in cognition 
-            and behavior. These patterns can provide early indicators of neurological and mental health 
-            conditions—turning play into a powerful tool for detection and prevention.
+            Our newest platform launching soon
           </p>
           <Link
             href="/Amy"
