@@ -175,10 +175,7 @@ export default function Home() {
             Harnessing Video Games to Predict Mental Health
           </h3>
           <p className="text-lg md:text-xl text-gray-300 mb-8">
-            Our newest platform leverages everyday video gameplay to uncover subtle patterns in cognition 
-            and behavior. These patterns can provide early indicators of neurological and mental health 
-            conditions—turning play into a powerful tool for detection and prevention.
-          </p>
+            Our newest platform coming soon
           <Link
             href="/Amy"
             className="inline-block px-8 py-3 bg-green-600 hover:bg-green-500 text-white rounded-xl text-lg transition"
